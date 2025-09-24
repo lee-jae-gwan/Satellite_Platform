@@ -1,0 +1,4141 @@
+{% load static %}
+{% csrf_token %}
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FIRELINE INTELLIGENCE PLATFORM - 산불화선 시뮬레이터</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="https://unpkg.com/leaflet-polylinedecorator@1.7.0/dist/leaflet.polylineDecorator.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            background: linear-gradient(135deg, #0a0a0a 0%, #1a1a2e 50%, #16213e 100%);
+            color: #e0e6ed;
+            overflow-x: hidden;
+            min-height: 100vh;
+        }
+
+        /* Header */
+        .header {
+            background: rgba(10, 10, 10, 0.95);
+            backdrop-filter: blur(20px);
+            border-bottom: 1px solid rgba(0, 255, 255, 0.2);
+            padding: 12px 24px;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            z-index: 1000;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .logo {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            font-size: 18px;
+            font-weight: 700;
+            color: #00ffff;
+            text-shadow: 0 0 10px rgba(0, 255, 255, 0.5);
+        }
+
+        .logo i {
+            font-size: 24px;
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.7; }
+        }
+
+        .header-controls {
+            display: flex;
+            align-items: center;
+            gap: 20px;
+        }
+
+        /* Role-based View Selector */
+        .role-selector {
+            display: flex;
+            background: rgba(0, 0, 0, 0.8);
+            border: 1px solid rgba(0, 255, 255, 0.3);
+            border-radius: 8px;
+            overflow: hidden;
+            margin-right: 15px;
+        }
+
+        .role-btn {
+            background: transparent;
+            border: none;
+            color: #888;
+            padding: 10px 16px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-size: 11px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            position: relative;
+        }
+
+        .role-btn.active {
+            background: linear-gradient(135deg, #00ffff 0%, #00cccc 100%);
+            color: #000;
+            box-shadow: 0 0 15px rgba(0, 255, 255, 0.3);
+        }
+
+        .role-btn:hover:not(.active) {
+            background: rgba(0, 255, 255, 0.1);
+            color: #00ffff;
+        }
+
+        .role-btn i {
+            margin-right: 6px;
+            font-size: 12px;
+        }
+
+        /* Customization Panel */
+        .customization-panel {
+            position: fixed;
+            top: 70px;
+            right: 20px;
+            width: 300px;
+            background: rgba(15, 15, 35, 0.95);
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(0, 255, 255, 0.2);
+            border-radius: 12px;
+            padding: 20px;
+            z-index: 999;
+            transform: translateX(320px);
+            transition: transform 0.3s ease;
+        }
+
+        .customization-panel.active {
+            transform: translateX(0);
+        }
+
+        .panel-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+
+        .panel-title {
+            font-size: 14px;
+            font-weight: 600;
+            color: #00ffff;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .close-btn {
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            color: #888;
+            cursor: pointer;
+            font-size: 14px;
+            width: 28px;
+            height: 28px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.3s ease;
+        }
+
+        .close-btn:hover {
+            background: rgba(255, 69, 0, 0.2);
+            border-color: rgba(255, 69, 0, 0.4);
+            color: #ff4500;
+            transform: scale(1.1);
+        }
+
+        .close-btn:active {
+            transform: scale(0.95);
+        }
+
+        .ui-preset {
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 8px;
+            padding: 12px;
+            margin-bottom: 10px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .ui-preset:hover {
+            background: rgba(0, 255, 255, 0.1);
+            border-color: rgba(0, 255, 255, 0.3);
+        }
+
+        .ui-preset.active {
+            border-color: #00ffff;
+            background: rgba(0, 255, 255, 0.15);
+        }
+
+        .preset-name {
+            font-size: 12px;
+            font-weight: 600;
+            color: #e0e6ed;
+            margin-bottom: 4px;
+        }
+
+        .preset-description {
+            font-size: 10px;
+            color: #888;
+        }
+
+        .view-toggle {
+            display: flex;
+            background: rgba(0, 0, 0, 0.8);
+            border: 1px solid rgba(0, 255, 255, 0.3);
+            border-radius: 6px;
+            overflow: hidden;
+        }
+
+        .view-toggle button {
+            background: transparent;
+            border: none;
+            color: #888;
+            padding: 8px 16px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-size: 12px;
+            font-weight: 500;
+        }
+
+        .view-toggle button.active {
+            background: linear-gradient(135deg, #00ffff 0%, #00cccc 100%);
+            color: #000;
+        }
+
+        .view-toggle button:hover:not(.active) {
+            background: rgba(0, 255, 255, 0.1);
+            color: #00ffff;
+        }
+
+        .status-indicator {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 6px 12px;
+            background: rgba(0, 255, 0, 0.1);
+            border: 1px solid rgba(0, 255, 0, 0.3);
+            border-radius: 20px;
+            font-size: 12px;
+            color: #00ff00;
+        }
+
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            background: #00ff00;
+            border-radius: 50%;
+            animation: blink 1.5s infinite;
+        }
+
+        @keyframes blink {
+            0%, 50% { opacity: 1; }
+            51%, 100% { opacity: 0.3; }
+        }
+
+        /* Main Layout */
+        .main-container {
+            display: grid;
+            grid-template-columns: 320px 1fr 400px;
+            grid-template-rows: 1fr;
+            height: 100vh;
+            padding-top: 60px;
+            gap: 1px;
+            background: #000;
+        }
+
+        /* Multi-view Layout */
+        .multi-view-container {
+            display: none;
+            grid-template-columns: 320px 1fr 400px;
+            grid-template-rows: 1fr;
+            height: 100vh;
+            padding-top: 60px;
+            gap: 1px;
+            background: #000;
+        }
+
+        .multi-view-container.active {
+            display: grid;
+        }
+
+        .main-container.hidden {
+            display: none;
+        }
+
+        /* Left Sidebar */
+        .sidebar {
+            background: linear-gradient(180deg, rgba(15, 15, 35, 0.95) 0%, rgba(10, 10, 25, 0.95) 100%);
+            backdrop-filter: blur(10px);
+            border-right: 1px solid rgba(0, 255, 255, 0.1);
+            padding: 20px;
+            overflow-y: auto;
+        }
+
+        .sidebar-section {
+            margin-bottom: 30px;
+        }
+
+        .sidebar-title {
+            font-size: 14px;
+            font-weight: 600;
+            color: #00ffff;
+            margin-bottom: 15px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .threat-level {
+            background: linear-gradient(135deg, rgba(255, 69, 0, 0.2) 0%, rgba(255, 140, 0, 0.1) 100%);
+            border: 1px solid rgba(255, 69, 0, 0.3);
+            border-radius: 8px;
+            padding: 15px;
+            margin-bottom: 15px;
+        }
+
+        .threat-level-header {
+            display: flex;
+            justify-content: between;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+
+        .threat-level-title {
+            font-size: 16px;
+            font-weight: 600;
+            color: #ff4500;
+        }
+
+        .threat-badge {
+            background: rgba(255, 69, 0, 0.8);
+            color: white;
+            padding: 4px 8px;
+            border-radius: 12px;
+            font-size: 10px;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+
+        .threat-details {
+            font-size: 12px;
+            color: #b0b0b0;
+            line-height: 1.4;
+        }
+
+        .incident-list {
+            list-style: none;
+        }
+
+        .incident-item {
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 6px;
+            padding: 12px;
+            margin-bottom: 8px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .incident-item:hover {
+            background: rgba(0, 255, 255, 0.1);
+            border-color: rgba(0, 255, 255, 0.3);
+            transform: translateX(5px);
+        }
+
+        .incident-title {
+            font-size: 13px;
+            font-weight: 500;
+            color: #ffffff;
+            margin-bottom: 4px;
+        }
+
+        .incident-meta {
+            font-size: 11px;
+            color: #888;
+            display: flex;
+            justify-content: space-between;
+        }
+
+        /* Resource Selection Panel */
+        .resource-panel {
+            margin-bottom: 25px;
+        }
+
+        .resource-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 10px;
+            margin-bottom: 15px;
+        }
+
+        .resource-item {
+            background: rgba(255, 255, 255, 0.05);
+            border: 2px solid rgba(255, 255, 255, 0.1);
+            border-radius: 8px;
+            padding: 12px;
+            cursor: grab;
+            transition: all 0.3s ease;
+            text-align: center;
+            position: relative;
+            z-index: 10;
+        }
+
+        .resource-item:hover {
+            background: rgba(0, 255, 255, 0.1);
+            border-color: rgba(0, 255, 255, 0.3);
+            transform: translateY(-2px);
+        }
+
+        .resource-item.dragging {
+            cursor: grabbing;
+            opacity: 0.7;
+            transform: rotate(5deg);
+        }
+
+        .resource-item.selected {
+            border-color: #00ffff;
+            background: rgba(0, 255, 255, 0.15);
+            box-shadow: 0 0 15px rgba(0, 255, 255, 0.3);
+        }
+
+        .resource-icon {
+            font-size: 24px;
+            margin-bottom: 8px;
+            display: block;
+        }
+
+        .resource-item.firetruck .resource-icon {
+            color: #ff4500;
+        }
+
+        .resource-item.helicopter .resource-icon {
+            color: #00ff00;
+        }
+
+        .resource-item.personnel .resource-icon {
+            color: #ffa500;
+        }
+
+        .resource-item.water .resource-icon {
+            color: rgba(0, 0, 255, 0.8)
+        }
+        .resource-item.commandCenter .resource-icon {
+            color: #00cfff; /* 통합지휘소 - 쨍한 하늘색 */
+        }
+
+        .resource-item.drone .resource-icon {
+            color: #9b59b6; /* 드론 - 보라색 */
+        }
+
+        .resource-name {
+            font-size: 11px;
+            font-weight: 600;
+            color: #e0e6ed;
+            margin-bottom: 4px;
+        }
+
+        .resource-count {
+            font-size: 10px;
+            color: #888;
+        }
+
+        .resource-available {
+            position: absolute;
+            top: -5px;
+            right: -5px;
+            background: #00ff00;
+            color: #000;
+            border-radius: 50%;
+            width: 20px;
+            height: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 10px;
+            font-weight: 700;
+        }
+
+        /* Main Content */
+        .main-content {
+            background: linear-gradient(135deg, rgba(20, 20, 40, 0.95) 0%, rgba(15, 15, 30, 0.95) 100%);
+            backdrop-filter: blur(10px);
+            padding: 20px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .map-container {
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+            border: 2px solid rgba(0, 255, 255, 0.2);
+            border-radius: 12px;
+            position: relative;
+            overflow: hidden;
+            box-shadow: 0 0 30px rgba(0, 255, 255, 0.1);
+        }
+
+        /* Enhanced map for single view */
+        .main-container .map-container {
+            height: 100%;
+            margin-bottom: 15px;
+        }
+
+        /* Map interaction improvements */
+        .map-container:hover {
+            border-color: rgba(0, 255, 255, 0.4);
+            box-shadow: 0 0 40px rgba(0, 255, 255, 0.2);
+            transform: translateY(-2px);
+            transition: all 0.3s ease;
+        }
+
+        .map-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><defs><pattern id="grid" width="20" height="20" patternUnits="userSpaceOnUse"><path d="M 20 0 L 0 0 0 20" fill="none" stroke="rgba(0,255,255,0.05)" stroke-width="0.3"/></pattern></defs><rect width="100" height="100" fill="url(%23grid)"/></svg>');
+            pointer-events: none;
+            z-index: 1;
+        }
+
+        .leaflet-map {
+            width: 100%;
+            height: 100%;
+            position: absolute;
+            top: 0;
+            left: 0;
+            z-index: 0;
+        }
+
+        /* Leaflet map styling for satellite imagery */
+        .leaflet-container {
+            background: #1a1a2e !important;
+        }
+
+        .leaflet-tile {
+            filter: brightness(0.8) contrast(1.1) saturate(1.2);
+        }
+
+        .fire-marker {
+            position: absolute;
+            width: 10px;
+            height: 10px;
+            background: radial-gradient(circle, #ff0000 0%, #fd3402 50%, transparent 70%);
+            border-radius: 50%;
+            animation: fireGlow 2s infinite alternate;
+            z-index: 2;
+        }
+
+        .fire-boundary {
+            stroke: url(#fireGradient);
+            stroke-width: 3;
+            fill: rgba(255, 0, 0);
+            animation: fireFlicker 1s infinite linear;
+        }
+
+
+        @keyframes fireFlicker {
+            0% {
+                stroke: #8B0000; /* 진한 빨강 */
+                stroke-dashoffset: 0;
+            }
+            50% {
+                stroke: #f5062a; /* 분홍빛 빨강 */
+                stroke-dashoffset: 10;
+            }
+            100% {
+                stroke: #9b0000; /* 다시 진한 빨강 */
+                stroke-dashoffset: 20;
+            }
+        }
+        .fireprediction-boundary {
+            stroke: url(#firepredictionGradient );
+            stroke-width: 2;
+            fill: rgba(255, 215, 0, 0.2);
+            stroke-dasharray: 10;  /* 선 분할 */
+            animation: fireFlickerYellow 2s infinite linear;
+        }
+        @keyframes fireFlickerYellow {
+            0% { stroke: #FFD700; stroke-dashoffset: 0; }  /* 황금색 */
+            50% { stroke: #ADFF2F; stroke-dashoffset: 10; } /* 연두색으로 깜빡임 */
+            100% { stroke: #FFD700; stroke-dashoffset: 20; }
+        }
+
+        .simulation-controls {
+            z-index: 3;
+        }
+       .rangebar-container input[type="range"] {
+            position: absolute;
+            top: 30%;
+            left: 0;
+            width: 100%;
+            transform: translateY(-50%); /* 세로 가운데 정렬 */
+            cursor: pointer;
+            accent-color: #ff4500;
+            
+                /* 브라우저 기본 스타일 제거 */
+            -webkit-appearance: none;
+            appearance: none;
+
+            /* 트랙 스타일 */
+            height: 4px;               /* 트랙 두께 */
+            background: #ceada2e5;       /* 트랙 색상 */
+            border-radius: 2px;
+        }
+        /* 크롬/사파리: 슬라이더 핸들 제거 */
+        .rangebar-container input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 0;
+            height: 0;
+            background: transparent;
+            border: none;
+        }
+
+        .rangebar-container input[type="range"]::-moz-range-thumb {
+            width: 0;
+            height: 0;
+            background: transparent;
+            border: none;
+        }
+        .timeline-marker {
+            position: absolute;
+            top: 30%;
+            transform: translateY(-50%); /* 마커도 가운데 정렬 */
+            width: 6px;
+            height: 12px;
+            background: red;
+            border-radius: 2px;
+            pointer-events: none; /* 마커 클릭 방지 */
+        }
+
+        .timeline-range {
+            width: 100%;
+            cursor: pointer;
+            accent-color: #ff4500;
+        }
+        /* 말풍선 스타일 */
+        .tooltip {
+            position: absolute;
+            top: 77%; /* 슬라이더 위에 띄우기 */
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(0, 0, 0, 0.8);
+            color: white;
+            font-size: 11px;
+            padding: 4px 6px;
+            border-radius: 4px;
+            white-space: nowrap;
+        }
+
+        /* 말풍선 꼬리 */
+        .tooltip::after {
+            content: "";
+            position: absolute;
+            bottom: -5px;
+            left: 50%;
+            transform: translateX(-50%);
+            border-width: 5px;
+            border-style: solid;
+            border-color: rgba(0, 0, 0, 0.8) transparent transparent transparent;
+        }
+        /* Multi-view Grid */
+        .multi-view-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            grid-template-rows: 1fr 1fr;
+            gap: 2px;
+            height: 100%;
+            background: #000;
+        }
+
+        .simulation-view {
+            background: linear-gradient(135deg, rgba(20, 20, 40, 0.95) 0%, rgba(15, 15, 30, 0.95) 100%);
+            backdrop-filter: blur(10px);
+            position: relative;
+            overflow: hidden;
+            border: 1px solid rgba(0, 255, 255, 0.2);
+            width:100%;
+            height:100%;
+        }
+
+        .simulation-view.active {
+            border-color: #00ffff;
+            box-shadow: 0 0 20px rgba(0, 255, 255, 0.3);
+        }
+
+        .view-header {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            right: 10px;
+            background: rgba(0, 0, 0, 0.8);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(0, 255, 255, 0.3);
+            border-radius: 6px;
+            padding: 8px 12px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            z-index: 10;
+        }
+        .view-controls{
+            display: flex;
+            gap: 4px; /* 버튼 사이 간격 */
+            margin-left: auto;
+            margin-right: 5px;
+        }
+
+        .view-title {
+            font-size: 12px;
+            font-weight: 600;
+            color: #00ffff;
+        }
+
+        .view-status {
+            font-size: 10px;
+            color: #888;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+
+        .status-dot-small {
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            animation: blink 1.5s infinite;
+        }
+
+        .status-running .status-dot-small {
+            background: #00ff00;
+        }
+
+        .status-paused .status-dot-small {
+            background: #ffa500;
+        }
+
+        .status-stopped .status-dot-small {
+            background: #ff4500;
+        }
+
+        .mini-map {
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+            position: relative;
+            overflow: hidden;
+            z-index:0;
+        }
+
+        .mini-map-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            z-index: 0;
+
+            
+            /*
+            background: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><defs><pattern id="mini-grid" width="5" height="5" patternUnits="userSpaceOnUse"><path d="M 5 0 L 0 0 0 5" fill="none" stroke="rgba(0,255,255,0.05)" stroke-width="0.3"/></pattern></defs><rect width="100" height="100" fill="url(%23mini-grid)"/></svg>');
+            */
+        }
+
+        .mini-fire-marker {
+            position: absolute;
+            width: 12px;
+            height: 12px;
+            background: radial-gradient(circle, #ff4500 0%, #ff6b35 50%, transparent 70%);
+            border-radius: 50%;
+            animation: fireGlow 2s infinite alternate;
+            z-index: 10;
+        }
+
+        .resource-marker {
+            position: absolute;
+            width: 16px;
+            height: 16px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 8px;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            z-index: 10;
+        }
+
+        .resource-marker:hover {
+            transform: scale(1.2);
+        }
+
+        .resource-marker.firetruck {
+            background: rgba(255, 69, 0, 0.8);
+            color: white;
+            border: 2px solid #ff4500;
+        }
+
+        .resource-marker.helicopter {
+            background: rgba(0, 255, 0, 0.8);
+            color: black;
+            border: 2px solid #00ff00;
+        }
+
+        .resource-marker.personnel {
+            background: rgba(255, 165, 0, 0.8);
+            color: black;
+            border: 2px solid #ffa500;
+        }
+
+        .resource-marker.water {
+            background: rgba(0, 0, 255, 0.8); /* 진한 파랑 */
+            color: white;
+            border: 2px solid #0000ff;       /* 진한 파랑 테두리 */
+        }
+        .resource-marker.commandCenter {
+            background: rgba(0, 207, 255, 0.8); /* 쨍한 하늘색 */
+            color: black;
+            border: 2px solid #00cfff;
+        }
+
+        .resource-marker.drone {
+            background: rgba(155, 89, 182, 0.8); /* 보라색 */
+            color: white;
+            border: 2px solid #9b59b6;
+        }
+
+        .drop-zone {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            border: 2px dashed transparent;
+            transition: all 0.3s ease;
+            z-index: 10;
+        }
+
+        .drop-zone.drag-over {
+            border-color: #00ffff;
+            background: rgba(0, 255, 255, 0.1);
+        }
+
+        @keyframes fireGlow {
+            0% { 
+                box-shadow: 0 0 10px #ff4500, 0 0 20px #ff4500, 0 0 30px #ff4500;
+                transform: scale(1);
+            }
+            100% { 
+                box-shadow: 0 0 20px #ff4500, 0 0 30px #ff4500, 0 0 40px #ff4500;
+                transform: scale(1.2);
+            }
+        }
+
+        .simulation-controls {
+            position: absolute;
+            bottom: 20px;
+            left: 20px;
+            right: 20px;
+            background: rgba(0, 0, 0, 0.8);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(0, 255, 255, 0.3);
+            border-radius: 8px;
+            padding: 15px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .control-group {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .pre-simul-control-group {
+            justify-content: flex-start;
+            display: flex;
+            gap: 10px;
+            z-index: 999;
+        }
+        .controlbtn,
+        .control-btn {
+            background: linear-gradient(135deg, rgba(0, 255, 255, 0.2) 0%, rgba(0, 200, 200, 0.2) 100%);
+            border: 1px solid rgba(0, 255, 255, 0.4);
+            color: #00ffff;
+            padding: 8px 16px;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-size: 12px;
+            font-weight: 500;
+        }
+        .controlbtn.hover,
+        .control-btn:hover {
+            background: linear-gradient(135deg, rgba(0, 255, 255, 0.3) 0%, rgba(0, 200, 200, 0.3) 100%);
+            box-shadow: 0 0 15px rgba(0, 255, 255, 0.3);
+        }
+        .controlbtn.active,
+        .control-btn.active {
+            background: linear-gradient(135deg, #00ffff 0%, #00cccc 100%);
+            color: #000;
+        }
+
+        .timeline-container {
+            margin-top: 20px;
+            height: 25%;
+            background: rgba(0, 0, 0, 0.6);
+            border: 1px solid rgba(0, 255, 255, 0.2);
+            border-radius: 8px;
+            padding: 15px;
+        }
+
+        .timeline-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+
+        .timeline-title {
+            font-size: 14px;
+            font-weight: 600;
+            color: #00ffff;
+        }
+
+        .timeline-chart {
+            width: 100%;
+            height: 120px;
+            background: linear-gradient(90deg, 
+                transparent 0%, 
+                rgba(0, 255, 255, 0.1) 25%, 
+                rgba(255, 69, 0, 0.2) 50%, 
+                rgba(255, 140, 0, 0.1) 75%, 
+                transparent 100%);
+            border-radius: 4px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .timeline-wave {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            height: 60%;
+            background: linear-gradient(45deg, #00ffff, #ff4500);
+            opacity: 0.6;
+            animation: wave 3s ease-in-out infinite;
+            clip-path: polygon(0 100%, 10% 80%, 20% 85%, 30% 70%, 40% 75%, 50% 60%, 60% 65%, 70% 50%, 80% 55%, 90% 40%, 100% 45%, 100% 100%);
+        }
+
+        @keyframes wave {
+            0%, 100% { transform: translateX(-100px); }
+            50% { transform: translateX(100px); }
+        }
+
+        /* Right Panel */
+        .right-panel {
+            background: linear-gradient(180deg, rgba(15, 15, 35, 0.95) 0%, rgba(10, 10, 25, 0.95) 100%);
+            backdrop-filter: blur(10px);
+            border-left: 1px solid rgba(0, 255, 255, 0.1);
+            padding: 20px;
+            overflow-y: auto;
+        }
+
+        .intel-section {
+            margin-bottom: 25px;
+        }
+
+        .intel-title {
+            font-size: 14px;
+            font-weight: 600;
+            color: #00ffff;
+            margin-bottom: 15px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .intel-card {
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 8px;
+            padding: 15px;
+            margin-bottom: 12px;
+            transition: all 0.3s ease;
+        }
+
+        .intel-card:hover {
+            background: rgba(0, 255, 255, 0.05);
+            border-color: rgba(0, 255, 255, 0.2);
+        }
+
+        .intel-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 8px;
+        }
+
+        .intel-type {
+            font-size: 11px;
+            color: #888;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .intel-confidence {
+            background: rgba(0, 255, 0, 0.2);
+            color: #00ff00;
+            padding: 2px 6px;
+            border-radius: 10px;
+            font-size: 10px;
+            font-weight: 600;
+        }
+
+        .intel-content {
+            font-size: 13px;
+            color: #e0e6ed;
+            line-height: 1.4;
+        }
+
+        .intel-section-simpanel{
+            margin-bottom: 5px;
+        }
+        .intel-card-simpanel {
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 8px;
+            padding: 15px;
+            margin-bottom: 10px;
+            transition: all 0.3s ease;
+        }
+        .senario-widget {
+            background: linear-gradient(135deg, rgba(0, 100, 200, 0.2) 0%, rgba(0, 50, 150, 0.2) 100%);
+            border: 1px solid rgba(0, 150, 255, 0.3);
+            border-radius: 8px;
+            padding: 5px;
+            margin-bottom: 5px;
+            text-align: center;  /* 혹시라도 대비 */
+        }
+
+        .senario-header {
+            display: block; 
+            text-align: center;
+            padding: 0;
+            margin: 0;
+            color: #fcfdfd;
+            font-size: 14px;
+            font-weight:600%;
+            margin-bottom:10px;
+        }
+        .senario-contents {
+            display: block; 
+            text-align: center;
+            padding: 0;
+            color: #fcca6e;
+            font-size: 12px;
+            font-weight:600%;
+        }
+        .indicator {
+            display: inline-block;
+            text-align: center; 
+            font-weight: bold;
+            position: relative;
+            gap: 6px;
+        }
+
+        .indicator.up{
+            color:#00cc00;
+            align-items:center;
+        }
+
+        .indicator.up::after {
+            content: "";
+            width: 0;
+            height: 0;
+            border-left: 6px solid transparent;
+            border-right: 6px solid transparent;
+            border-bottom: 10px solid green;
+            display: inline-block;
+            transform: translateY(2px); /* 글자 중앙 맞춤 */
+        }
+
+        .indicator.down{
+            color:#dc143c;
+        }
+
+        .indicator.down::after {
+            content: "";
+            width: 0;
+            height: 0;
+            border-left: 6px solid transparent;
+            border-right: 6px solid transparent;
+            border-top: 10px solid red;
+            display: inline-block;
+            transform: translateY(2px); 
+        }
+        .efficiency-bar {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-weight: bold;
+        }
+
+        .efficiency-bar .bar {
+            flex: 1; /* 바 길이 자동 */
+            height: 12px;
+            background: #eee;
+            border-radius: 6px;
+            overflow: hidden;
+        }
+
+        .efficiency-bar .fill {
+            height: 100%;
+            background: linear-gradient(90deg, #00cc00, #009900);
+            border-radius: 6px 0 0 6px;
+        }
+
+        .weather-widget {
+            background: linear-gradient(135deg, rgba(0, 100, 200, 0.2) 0%, rgba(0, 50, 150, 0.2) 100%);
+            border: 1px solid rgba(0, 150, 255, 0.3);
+            border-radius: 8px;
+            padding: 15px;
+            margin-bottom: 15px;
+        }
+
+        .weather-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+
+        .weather-temp {
+            font-size: 24px;
+            font-weight: 700;
+            color: #0096ff;
+        }
+
+        .weather-condition {
+            font-size: 12px;
+            color: #b0b0b0;
+        }
+
+        .weather-details {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            margin-top: 10px;
+        }
+
+        .weather-item {
+            font-size: 11px;
+            color: #888;
+        }
+
+        .weather-value {
+            color: #0096ff;
+            font-weight: 600;
+        }
+
+        /* Scrollbar Styling */
+        ::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: rgba(255, 255, 255, 0.1);
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: rgba(0, 255, 255, 0.3);
+            border-radius: 3px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: rgba(0, 255, 255, 0.5);
+        }
+
+        /* Performance Metrics Panel */
+        .performance-panel {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            width: 500px;
+            background: rgba(15, 15, 35, 0.95);
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(0, 255, 255, 0.2);
+            border-radius: 12px;
+            padding: 20px;
+            z-index: 998;
+            transform: translateY(800px);
+            transition: transform 0.3s ease;
+        }
+
+        .performance-panel.active {
+            transform: translateY(0);
+        }
+
+        .performance-header {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+        .pre-simul-title,
+        .pre-simul-title1,
+        .pre-simul-title2,
+        .performance-title {
+            font-size: 14px;
+            font-weight: 600;
+            color: #00ffff;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .performance-badge {
+            background: linear-gradient(135deg, #00ff00 0%, #00cc00 100%);
+            color: #000;
+            padding: 4px 8px;
+            border-radius: 12px;
+            font-size: 10px;
+            font-weight: 700;
+            text-transform: uppercase;
+        }
+
+        .performance-badge-selected {
+            background: linear-gradient(135deg, #ff8800 0%, #cc7a00 100%);
+            color: #000;
+            padding: 4px 8px;
+            border-radius: 12px;
+            font-size: 10px;
+            font-weight: 700;
+            text-transform: uppercase;
+        }
+
+        .command-panel {
+            position: absolute;
+            bottom: 20px;
+            left: 20%;
+            width: 500px;
+            background: rgba(15, 15, 35, 0.95);
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(0, 255, 255, 0.2);
+            border-radius: 12px;
+            padding: 20px;
+            z-index: 998;
+            transform: translateX(-50%) translateY(800px);
+            transition: transform 0.3s ease;
+        }
+
+        .command-panel.active {
+            transform: translateY(0);
+        }
+
+        .command-header {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+
+        .command-title {
+            font-size: 14px;
+            font-weight: 600;
+            color: #00ffff;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+        .simulation-panel {
+            position: absolute;
+            display:inline-flex;
+            flex-direction: column;
+            bottom: 30px;
+            left: 10%;
+            width:80%;
+            background: rgba(15, 15, 35, 0.95);
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(0, 255, 255, 0.938);
+            border-radius: 12px;
+            padding: 20px;
+            z-index: 998;
+            transform: translateX(-50%) translateY(1200px);
+            transition: transform 0.3s ease;
+        }
+
+        /* show 클래스 추가 시 중앙으로 슬라이드 업 */
+        .simulation-panel.active {
+            transform: translateY(0);
+        }
+
+        .metric-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+
+        .metric-card {
+            display:grid;
+            grid-template-columns: 1fr 1fr;
+            font-family: inherit;
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 8px;
+            padding: 15px;
+            text-align: center;
+            align-items: center;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .metric-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 3px;
+            background: linear-gradient(90deg, #00ffff, #00ff00, #ffff00, #ff4500);
+            animation: metricGlow 3s ease-in-out infinite;
+        }
+        .metric-card-qualitive {
+            width: 100%;
+            margin-top: 15px;
+            padding: 12px 15px;
+            border: 1px solid rgba(0, 0, 0, 0.15);
+            border-radius: 10px;
+            background: #ffffff;
+            font-size: 0.8rem;
+            color: #333;
+            outline: none;
+            resize: vertical; /* 사용자가 세로 크기 조정 가능 */
+            box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+            transition: border 0.2s, box-shadow 0.2s;
+            font-family: inherit;
+
+        }
+        .metric-card-qualitive:focus {
+            border: 1px solid #007bff;
+            box-shadow: 0 0 6px rgba(0,123,255,0.4);
+        }
+
+        @keyframes metricGlow {
+            0%, 100% { opacity: 0.5; }
+            50% { opacity: 1; }
+        }
+
+        .metric-value {
+            font-size: 0.9rem;
+            font-weight: 700;
+            color: #00ffff;
+            margin-bottom: 5px;
+            text-shadow: 0 0 10px rgba(0, 255, 255, 0.5);
+        }
+
+        .metric-label {
+            font-size: 0.7rem;
+            font-weight:900;
+            align-items: center;
+            color: #8b7f7f;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .switch {
+            position: relative;
+            display: inline-block;
+            width: 50px;
+            height: 28px;
+            margin-left: 15px
+        }
+
+        .switch input { 
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+
+        .slider {
+            position: absolute;
+            cursor: pointer;
+            top: -5px;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: #ccc;
+            transition: 0.4s;
+            border-radius: 34px;
+        }
+
+        .slider:before {
+            position: absolute;
+            content: "";
+            height: 26px;
+            width: 26px;
+            left: 4px;
+            bottom: 4px;
+            background-color: white;
+            transition: 0.4s;
+            border-radius: 50%;
+        }
+
+        input:checked + .slider {
+            background-color: #2196F3;
+        }
+
+        input:checked + .slider:before {
+            transform: translateX(26px);
+        }
+
+        /* 별점 스타일 */
+        .star-rating {
+            display: flex;
+            flex-direction: row; /* row-reverse 대신 row */
+            justify-content: space-between; /* 별들을 넓게 퍼지게 */
+            font-size: 35px;
+            width: 80%;
+            margin-left: 10%;
+            margin-bottom:15px;
+        }
+
+        .star-rating input {
+            display: none;
+        }
+
+        .star-rating label {
+            color: #ccc;
+            cursor: pointer;
+            transition: color 0.2s;
+        }
+
+        .star-rating input:checked ~ label,
+        .star-rating label:hover,
+        .star-rating label:hover ~ label {
+            color: #FFD700;
+        }
+
+        /* 효율/비효율 버튼 */
+        .efficiency-buttons {
+            display: flex;
+            gap: 10px;
+            width: 100%;
+        }
+
+        .eff-btn {
+            flex: 1;
+            padding: 8px 0;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: bold;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+            transition: 0.2s;
+            font-size: 14px;
+        }
+
+        .eff-btn.efficient {
+            background-color: #d4edda;
+            color: #155724;
+        }
+
+        .eff-btn.inefficient {
+            background-color: #f8d7da;
+            color: #721c24;
+        }
+
+        .eff-btn:hover {
+            transform: scale(1.05);
+        }
+        .pre-simul-value {
+            font-size: 0.9rem;
+            font-weight: 700;
+            color: #ffee00e0;
+            margin-bottom: 5px;
+            text-shadow: 0 0 10px rgba(255, 0, 0, 0.5);
+        }
+
+        .pre-simul-label {
+            font-size: 0.7rem;
+            font-weight:900;
+            align-items: center;
+            color: #8b7f7f;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        .pre-simul-value2 {
+            font-size: 0.9rem;
+            font-weight: 700;
+            color: #00ff62e0;
+            margin-bottom: 5px;
+            text-shadow: 0 0 10px rgba(255, 217, 0, 0.5);
+        }
+
+        .pre-simul-label2 {
+            font-size: 0.7rem;
+            font-weight:900;
+            align-items: center;
+            color: #8b7f7f;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .strategy-comparison {
+            background: rgba(0, 255, 0, 0.1);
+            border: 1px solid rgba(0, 255, 0, 0.3);
+            border-radius: 8px;
+            padding: 15px;
+            margin-top: 15px;
+        }
+        .strategy-time {
+            background: rgba(255, 0, 0, 0.1);
+            border: 1px solid rgba(255, 60, 0, 0.3);
+            border-radius: 8px;
+            padding: 15px;
+            margin-top: 15px;
+        }
+
+        .comparison-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+
+        .comparison-title {
+            font-size: 12px;
+            font-weight: 600;
+            color: #00ff00;
+        }
+        .time-title {
+            font-size: 12px;
+            font-weight: 600;
+            color: #ffffff;
+        }
+
+        .match-rate {
+            font-size: 18px;
+            font-weight: 700;
+            color: #00ff00;
+            text-shadow: 0 0 10px rgba(0, 255, 0, 0.5);
+        }
+
+        .comparison-bar {
+            width: 100%;
+            height: 8px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 4px;
+            overflow: hidden;
+            position: relative;
+        }
+
+        .comparison-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #00ff00, #00ffff);
+            border-radius: 4px;
+            width: 92%;
+            animation: fillAnimation 2s ease-out;
+        }
+
+        @keyframes fillAnimation {
+            0% { width: 0%; }
+            100% { width: 92%; }
+        }
+
+        /* Auto View Transition Indicator */
+        .auto-transition-indicator {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(0, 0, 0, 0.9);
+            backdrop-filter: blur(20px);
+            border: 2px solid #00ffff;
+            border-radius: 12px;
+            padding: 20px 30px;
+            z-index: 1001;
+            opacity: 0;
+            visibility: hidden;
+            transition: all 0.3s ease;
+        }
+
+        .auto-transition-indicator.active {
+            opacity: 1;
+            visibility: visible;
+        }
+
+        .transition-text {
+            color: #00ffff;
+            font-size: 14px;
+            font-weight: 600;
+            text-align: center;
+            margin-bottom: 10px;
+        }
+
+        .transition-progress {
+            width: 200px;
+            height: 4px;
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 2px;
+            overflow: hidden;
+        }
+
+        .transition-progress-bar {
+            height: 100%;
+            background: linear-gradient(90deg, #00ffff, #00ff00);
+            border-radius: 2px;
+            width: 0%;
+            animation: progressAnimation 3s ease-out;
+        }
+
+        @keyframes progressAnimation {
+            0% { width: 0%; }
+            100% { width: 100%; }
+        }
+
+        /* Role-based Color Themes */
+        
+        /* Commander Theme - Gold/Orange (Authority & Command) */
+        body.commander-theme {
+            background: linear-gradient(135deg, #0a0a0a 0%, #2e1a1a 50%, #3e2116 100%);
+        }
+
+        body.commander-theme .header {
+            background: rgba(30, 15, 10, 0.95);
+            border-bottom: 1px solid rgba(255, 165, 0, 0.3);
+        }
+
+        body.commander-theme .logo {
+            color: #ffa500;
+            text-shadow: 0 0 10px rgba(255, 165, 0, 0.5);
+        }
+
+        body.commander-theme .role-btn.active,
+        body.commander-theme .view-toggle button.active,
+        body.commander-theme .control-btn.active {
+            background: linear-gradient(135deg, #ffa500 0%, #ff8c00 100%);
+            color: #000;
+            box-shadow: 0 0 15px rgba(255, 165, 0, 0.3);
+        }
+
+        body.commander-theme .sidebar,
+        body.commander-theme .main-content,
+        body.commander-theme .right-panel {
+            background: linear-gradient(180deg, rgba(35, 25, 15, 0.95) 0%, rgba(25, 15, 10, 0.95) 100%);
+            border-color: rgba(255, 165, 0, 0.2);
+        }
+
+        body.commander-theme .threat-level {
+            background: linear-gradient(135deg, rgba(255, 165, 0, 0.2) 0%, rgba(255, 140, 0, 0.1) 100%);
+            border-color: rgba(255, 165, 0, 0.4);
+        }
+
+        body.commander-theme .sidebar-title,
+        body.commander-theme .intel-title,
+        body.commander-theme .panel-title,
+        body.commander-theme .performance-title {
+            color: #ffa500;
+        }
+
+        body.commander-theme .status-indicator {
+            background: rgba(255, 165, 0, 0.1);
+            border-color: rgba(255, 165, 0, 0.3);
+            color: #ffa500;
+        }
+
+        body.commander-theme .status-dot {
+            background: #ffa500;
+        }
+
+        /* Analyst Theme - Blue/Cyan (Data & Analysis) */
+        body.analyst-theme {
+            background: linear-gradient(135deg, #0a0a0a 0%, #1a1a2e 50%, #16213e 100%);
+        }
+
+        body.analyst-theme .header {
+            background: rgba(10, 15, 30, 0.95);
+            border-bottom: 1px solid rgba(0, 150, 255, 0.3);
+        }
+
+        body.analyst-theme .logo {
+            color: #0096ff;
+            text-shadow: 0 0 10px rgba(0, 150, 255, 0.5);
+        }
+
+        body.analyst-theme .role-btn.active,
+        body.analyst-theme .view-toggle button.active,
+        body.analyst-theme .control-btn.active {
+            background: linear-gradient(135deg, #0096ff 0%, #0080ff 100%);
+            color: #000;
+            box-shadow: 0 0 15px rgba(0, 150, 255, 0.3);
+        }
+
+        body.analyst-theme .sidebar,
+        body.analyst-theme .main-content,
+        body.analyst-theme .right-panel {
+            background: linear-gradient(180deg, rgba(15, 25, 35, 0.95) 0%, rgba(10, 15, 25, 0.95) 100%);
+            border-color: rgba(0, 150, 255, 0.2);
+        }
+
+        body.analyst-theme .threat-level {
+            background: linear-gradient(135deg, rgba(0, 150, 255, 0.2) 0%, rgba(0, 120, 200, 0.1) 100%);
+            border-color: rgba(0, 150, 255, 0.4);
+        }
+
+        body.analyst-theme .sidebar-title,
+        body.analyst-theme .intel-title,
+        body.analyst-theme .panel-title,
+        body.analyst-theme .performance-title {
+            color: #0096ff;
+        }
+
+        body.commander-theme .pre-simul-title1{
+            color: #00b7ff;
+        }
+
+        body.commander-theme .pre-simul-title{
+            color: #ffd000;
+        }
+
+        body.commander-theme .pre-simul-title2{
+            color: #00ff37;
+        }
+
+
+        body.analyst-theme .status-indicator {
+            background: rgba(0, 150, 255, 0.1);
+            border-color: rgba(0, 150, 255, 0.3);
+            color: #0096ff;
+        }
+
+        body.analyst-theme .status-dot {
+            background: #0096ff;
+        }
+
+        /* Responder Theme - Red/Orange (Emergency & Action) */
+        body.responder-theme {
+            background: linear-gradient(135deg, #0a0a0a 0%, #2e1a1a 50%, #3e1616 100%);
+        }
+
+        body.responder-theme .header {
+            background: rgba(30, 10, 10, 0.95);
+            border-bottom: 1px solid rgba(255, 69, 0, 0.3);
+        }
+
+        body.responder-theme .logo {
+            color: #ff4500;
+            text-shadow: 0 0 10px rgba(255, 69, 0, 0.5);
+        }
+
+        body.responder-theme .role-btn.active,
+        body.responder-theme .view-toggle button.active,
+        body.responder-theme .control-btn.active {
+            background: linear-gradient(135deg, #ff4500 0%, #ff6b35 100%);
+            color: #fff;
+            box-shadow: 0 0 15px rgba(255, 69, 0, 0.3);
+        }
+
+        body.responder-theme .sidebar,
+        body.responder-theme .main-content,
+        body.responder-theme .right-panel {
+            background: linear-gradient(180deg, rgba(35, 15, 15, 0.95) 0%, rgba(25, 10, 10, 0.95) 100%);
+            border-color: rgba(255, 69, 0, 0.2);
+        }
+
+        body.responder-theme .threat-level {
+            background: linear-gradient(135deg, rgba(255, 69, 0, 0.2) 0%, rgba(255, 100, 50, 0.1) 100%);
+            border-color: rgba(255, 69, 0, 0.4);
+        }
+
+        body.responder-theme .sidebar-title,
+        body.responder-theme .intel-title,
+        body.responder-theme .panel-title,
+        body.responder-theme .performance-title {
+            color: #ff4500;
+        }
+
+        body.responder-theme .status-indicator {
+            background: rgba(255, 69, 0, 0.1);
+            border-color: rgba(255, 69, 0, 0.3);
+            color: #ff4500;
+        }
+
+        body.responder-theme .status-dot {
+            background: #ff4500;
+        }
+
+        /* Common theme overrides for interactive elements */
+        body.commander-theme .incident-item:hover,
+        body.commander-theme .intel-card:hover,
+        body.commander-theme .resource-item:hover {
+            background: rgba(255, 165, 0, 0.1);
+            border-color: rgba(255, 165, 0, 0.3);
+        }
+
+        body.analyst-theme .incident-item:hover,
+        body.analyst-theme .intel-card:hover,
+        body.analyst-theme .resource-item:hover {
+            background: rgba(0, 150, 255, 0.1);
+            border-color: rgba(0, 150, 255, 0.3);
+        }
+
+        body.responder-theme .incident-item:hover,
+        body.responder-theme .intel-card:hover,
+        body.responder-theme .resource-item:hover {
+            background: rgba(255, 69, 0, 0.1);
+            border-color: rgba(255, 69, 0, 0.3);
+        }
+
+        /* Map container theme colors */
+        body.commander-theme .map-container {
+            border-color: rgba(255, 165, 0, 0.3);
+            box-shadow: 0 0 30px rgba(255, 165, 0, 0.1);
+        }
+
+        body.analyst-theme .map-container {
+            border-color: rgba(0, 150, 255, 0.3);
+            box-shadow: 0 0 30px rgba(0, 150, 255, 0.1);
+        }
+
+        body.responder-theme .map-container {
+            border-color: rgba(255, 69, 0, 0.3);
+            box-shadow: 0 0 30px rgba(255, 69, 0, 0.1);
+        }
+
+        /* Performance panel theme colors */
+        body.commander-theme .performance-panel,
+        body.commander-theme .command-panel,
+        body.commander-theme .customization-panel {
+            background: rgba(35, 25, 15, 0.95);
+            border-color: rgba(255, 165, 0, 0.3);
+        }
+
+        body.analyst-theme .performance-panel,
+        body.analyst-theme .command-panel,
+        body.analyst-theme .customization-panel {
+            background: rgba(15, 25, 35, 0.95);
+            border-color: rgba(0, 150, 255, 0.3);
+        }
+
+        body.responder-theme .performance-panel,
+        body.responder-theme .command-panel,
+        body.responder-theme .customization-panel {
+            background: rgba(35, 15, 15, 0.95);
+            border-color: rgba(255, 69, 0, 0.3);
+        }
+
+
+        /* Metric card theme colors */
+        body.commander-theme .metric-card::before {
+            background: linear-gradient(90deg, #ffa500, #ffb347, #ffd700, #ff8c00);
+        }
+
+        body.analyst-theme .metric-card::before {
+            background: linear-gradient(90deg, #0096ff, #00bfff, #87ceeb, #4169e1);
+        }
+
+        body.responder-theme .metric-card::before {
+            background: linear-gradient(90deg, #ff4500, #ff6347, #ffa500, #dc143c);
+        }
+
+        /* Transition animations for theme changes */
+        body {
+            transition: background 0.5s ease;
+        }
+
+        .header,
+        .sidebar,
+        .main-content,
+        .right-panel,
+        .performance-panel,
+        .command-panel,
+        .customization-panel {
+            transition: all 0.5s ease;
+        }
+
+        /* Responsive Design */
+        @media (max-width: 1200px) {
+            .main-container {
+                grid-template-columns: 280px 1fr 350px;
+            }
+        }
+
+        @media (max-width: 768px) {
+            .main-container {
+                grid-template-columns: 1fr;
+                grid-template-rows: auto 1fr auto;
+            }
+            
+            .sidebar, .right-panel {
+                height: auto;
+                max-height: 300px;
+            }
+        }
+
+        /* Loading Animation */
+        .loading-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.9);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 9999;
+            opacity: 1;
+            transition: opacity 0.5s ease;
+        }
+
+        .loading-overlay.hidden {
+            opacity: 0;
+            pointer-events: none;
+        }
+
+        .loading-spinner {
+            width: 60px;
+            height: 60px;
+            border: 3px solid rgba(0, 255, 255, 0.3);
+            border-top: 3px solid #00ffff;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        /* 탭 버튼 */
+        .senario-tab-buttons {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 10px;
+        }
+
+        .senario-tab-btn {
+            flex: 1;
+            padding: 8px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            background-color: #eee;
+            font-weight: bold;
+            transition: 0.2s;
+        }
+
+        .senario-tab-btn.active {
+            background-color: #007bff;
+            color: #fff;
+        }
+
+        /* 탭 내용 */
+        .senario-tab-content {
+            display: none;
+        }
+
+        .senario-tab-content.active {
+            display: block;
+        }
+    </style>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+
+</head>
+<body>
+    <svg style="width:0;height:0;position:absolute;">
+        <defs>
+            <!-- 전체 경계 중간에 노란색이 섞이는 그라디언트 -->
+            <linearGradient id="fireGradient" x1="0%" y1="0%" x2="100%" y2="0%">
+            <stop offset="0%"   stop-color="red" />
+            <stop offset="45%"  stop-color="red" />
+            <stop offset="50%"  stop-color="yellow" />
+            <stop offset="55%"  stop-color="red" />
+            <stop offset="100%" stop-color="red" />
+            </linearGradient>
+        </defs>
+    </svg>
+
+    <!-- Loading Overlay -->
+    <div class="loading-overlay" id="loadingOverlay">
+        <div class="loading-spinner"></div>
+    </div>
+
+    <!-- Header -->
+    <header class="header">
+        <div class="logo">
+            <i class="fas fa-fire"></i>
+            FIRELINE INTELLIGENCE PLATFORM
+        </div>
+        <div class="header-controls">
+            <div class="role-selector">
+                <button class="role-btn active" data-role="commander">
+                    <i class="fas fa-star"></i> 지휘관
+                </button>
+                <button class="role-btn" data-role="analyst">
+                    <i class="fas fa-chart-line"></i> 분석가
+                </button>
+                <button class="role-btn" data-role="responder">
+                    <i class="fas fa-users"></i> 현장대응자
+                </button>
+            </div>
+            <div class="view-toggle">
+                <button id="singleViewBtn" class="active">
+                    <i class="fas fa-expand"></i> 단일 뷰
+                </button>
+                <button id="multiViewBtn">
+                    <i class="fas fa-th"></i> 4분면 뷰
+                </button>
+            </div>
+            <button id="customizeBtn" style="background: rgba(0, 255, 255, 0.1); border: 1px solid rgba(0, 255, 255, 0.3); color: #00ffff; padding: 8px 12px; border-radius: 6px; cursor: pointer; font-size: 12px;">
+                <i class="fas fa-cog"></i> 맞춤설정
+            </button>
+            <button id="performanceBtn" style="background: rgba(0, 255, 0, 0.1); border: 1px solid rgba(0, 255, 0, 0.3); color: #00ff00; padding: 8px 12px; border-radius: 6px; cursor: pointer; font-size: 12px;">
+                <i class="fas fa-chart-bar"></i> 보상설정
+            </button>
+            <button id="commandBtn" style="background: rgba(155, 48, 255, 0.1); border: 1px solid rgba(155, 48, 255, 0.5); color: #b973fa; padding: 8px 12px; border-radius: 6px; cursor: pointer; font-size: 12px;">
+                <i class="fas fa-chart-line"></i> 스마트 지휘
+            </button>
+            <div class="status-indicator">
+                <div class="status-dot"></div>
+                SYSTEM OPERATIONAL
+            </div>
+            <div style="color: #888; font-size: 12px;">
+                <i class="fas fa-clock"></i>
+                <span id="currentTime"></span>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Container -->
+    <div class="main-container">
+        <!-- Left Sidebar -->
+        <aside class="sidebar">
+            <div class="sidebar-section">
+                <div class="sidebar-title">
+                    <i class="fas fa-exclamation-triangle"></i>
+                    위협 수준
+                </div>
+                <div class="threat-level">
+                    <div class="threat-level-header">
+                        <div class="threat-level-title">HIGH RISK</div>
+                        <div class="threat-badge">ACTIVE</div>
+                    </div>
+                    <div class="threat-details">
+                        강풍과 건조한 날씨로 인해 산불 확산 위험이 높습니다. 
+                        실시간 모니터링이 진행 중입니다.
+                    </div>
+                </div>
+            </div>
+
+            <div class="sidebar-section">
+                <div class="sidebar-title">
+                    <i class="fas fa-truck"></i>
+                    소방 자원
+                </div>
+                <div class="resource-panel">
+                    <div class="resource-grid">
+                        <div class="resource-item firetruck" draggable="true" data-resource="firetruck">
+                            <div class="resource-available">8</div>
+                            <i class="fas fa-truck resource-icon"></i>
+                            <div class="resource-name">소방차</div>
+                            <div class="resource-count">8대 사용가능</div>
+                        </div>
+                        <div class="resource-item helicopter" draggable="true" data-resource="helicopter">
+                            <div class="resource-available">3</div>
+                            <i class="fas fa-helicopter resource-icon"></i>
+                            <div class="resource-name">소방헬기</div>
+                            <div class="resource-count">3대 사용가능</div>
+                        </div>
+                        <div class="resource-item personnel" draggable="true" data-resource="personnel">
+                            <div class="resource-available">45</div>
+                            <i class="fas fa-users resource-icon"></i>
+                            <div class="resource-name">소방인력</div>
+                            <div class="resource-count">45명 사용가능</div>
+                        </div>
+                        <div class="resource-item water" draggable="true" data-resource="water">
+                            <div class="resource-available">12</div>
+                            <i class="fas fa-tint resource-icon"></i>
+                            <div class="resource-name">급수지</div>
+                            <div class="resource-count"></div>
+                        </div>
+                        <div class="resource-item commandCenter" draggable="true" data-resource="commandCenter">
+                            <div class="resource-available">1</div>
+                            <i class="fas fa-building resource-icon"></i>
+                            <div class="resource-name">통합지휘소</div>
+                            <div class="resource-count">1개 사용 가능</div>
+                        </div>
+
+                        <div class="resource-item drone" draggable="true" data-resource="drone">
+                            <div class="resource-available">2</div>
+                            <i class="fas fa-plane resource-icon"></i>
+                            <div class="resource-name">드론</div>
+                            <div class="resource-count">2대 사용 가능</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="sidebar-section">
+                <div class="sidebar-title">
+                    <i class="fas fa-list"></i>
+                    활성 사건
+                </div>
+                <ul class="incident-list">
+                    <li class="incident-item">
+                        <div class="incident-title">강원도 산불 #2024-001</div>
+                        <div class="incident-meta">
+                            <span>진행중</span>
+                            <span>2시간 전</span>
+                        </div>
+                    </li>
+                    <li class="incident-item">
+                        <div class="incident-title">경북 울진 화재 위험</div>
+                        <div class="incident-meta">
+                            <span>모니터링</span>
+                            <span>30분 전</span>
+                        </div>
+                    </li>
+                    <li class="incident-item">
+                        <div class="incident-title">전남 순천 예방 조치</div>
+                        <div class="incident-meta">
+                            <span>대기</span>
+                            <span>1시간 전</span>
+                        </div>
+                    </li>
+                </ul>
+            </div>
+
+            <div class="sidebar-section">
+                <div class="sidebar-title">
+                    <i class="fas fa-chart-line"></i>
+                    실시간 통계
+                </div>
+                <div class="intel-card">
+                    <div class="intel-header">
+                        <span class="intel-type">활성 화재</span>
+                        <span class="intel-confidence">3</span>
+                    </div>
+                    <div class="intel-content">현재 모니터링 중인 화재 지점</div>
+                </div>
+                <div class="intel-card">
+                    <div class="intel-header">
+                        <span class="intel-type">위험 지역</span>
+                        <span class="intel-confidence">12</span>
+                    </div>
+                    <div class="intel-content">고위험 산불 예상 지역</div>
+                </div>
+            </div>
+        </aside>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <div class="map-container" data-simulation="0">
+                <div id="singleViewMap" class="leaflet-map">
+                    <div class="map-overlay"></div>
+                    <div class="drop-zone" data-simulation="0"></div>
+                </div>
+                <!-- Fire markers are now handled by Leaflet -->
+                
+                <div class="simulation-controls">
+                    <div class="control-group">
+                        <input type="file" id="folderInput" webkitdirectory directory multiple>
+                        <button class="control-btn active" onclick="uploadFolder()">
+                            <i class="fas fa-play"></i> 영상 올리기
+                        </button>
+                    </div>
+                </div>
+                {% if uploaded_url %}
+                <p>{{ message }}</p>
+                <a href="{{ uploaded_url }}" target="_blank">업로드 파일 보기</a>
+                {% endif %}
+            </div>
+        </main>
+
+        <!-- Right Panel -->
+        <aside class="right-panel">
+            <div class="intel-section">
+                <div class="intel-title">
+                    <i class="fas fa-cloud-sun"></i>
+                    기상 정보
+                </div>
+                <div class="weather-widget">
+                    <div class="weather-header">
+                        <div>
+                            <div class="weather-temp">23°C</div>
+                            <div class="weather-condition">맑음, 강풍</div>
+                        </div>
+                        <i class="fas fa-sun" style="font-size: 32px; color: #ffa500;"></i>
+                    </div>
+                    <div class="weather-details">
+                        <div class="weather-item">
+                            풍속: <span class="weather-value">15 m/s</span>
+                        </div>
+                        <div class="weather-item">
+                            습도: <span class="weather-value">25%</span>
+                        </div>
+                        <div class="weather-item">
+                            풍향: <span class="weather-value">북서</span>
+                        </div>
+                        <div class="weather-item">
+                            가시거리: <span class="weather-value">10km</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+             <div id="senario-compare" class="senario-tab-content active">
+                    <span class="intel-title">AI 평가 결과 종합</span>
+                    <div class="intel-card">
+                        <div class="senario-card" style="display: grid; grid-template-columns: repeat(2, 1fr); grid-gap: 5px;">
+                                <div class="senario-widget">
+                                    <div class="senario-header">
+                                        <div>진화 효율 지표</div>
+                                    </div>
+                                    <div class="senario-contents"> 35,565</div>
+                                    <div class="senario-contents">진화면적(km²)</div>
+                                    <div class="indicator up">기존대비</div>
+                                </div>
+                                <div class="senario-widget">
+                                    <div class="senario-header">
+                                        <div>자원배치 효율</div>
+                                    </div>
+                                    <div class="efficiency-bar">
+                                        <span class="label">효율성</span>
+                                        <div class="bar">
+                                            <div class="fill" style="width: 74%;"></div>
+                                        </div>
+                                        <span class="value">74%</span>
+                                    </div>
+                                </div>
+                                <div class="senario-widget">
+                                    <div class="senario-header">
+                                        <div>예상 피해 규모</div>
+                                    </div>
+                                    <div class="senario-contents"> 20ha</div>
+                                    <div class="senario-contents">피해면적</div>
+                                    <div class="indicator up">최소 피해</div>
+                                </div>
+                                <div class="senario-widget">
+                                    <div class="senario-header">
+                                        <div>예상 진화 시간</div>
+                                    </div>
+                                    <div class="senario-contents" style="font-size:15px; font-weight:800;"> 2시간 이내</div>
+                                </div>
+                        </div>
+                    </div>
+            </div>
+            <div class="intel-section">
+                <div class="intel-title">
+                    <i class="fas fa-brain"></i>
+                    스마트 알림 시스템
+                </div>
+                <div class="intel-card">
+                    <div class="intel-header">
+                        <span class="intel-type">통합지휘권자 교체</span>
+                        <span class="intel-confidence">2시간</span>
+                    </div>
+                    <div class="intel-content">
+                        예측 결과 다수 시·도로 확산이 예상되어 산림청장에게 통합지휘권 발동 준비를 요청해야 합니다.
+                    </div>
+                </div>
+                <div class="intel-card">
+                    <div class="intel-header">
+                        <span class="intel-type">업무 협조 연락(국가유산청)</span>
+                        <span class="intel-confidence">30분</span>
+                    </div>
+                    <div class="intel-content">
+                        현재 확산 속도 및 방향을 고려했을때 30분 이내 국가유산청에 협조 연락을 보내야합니다.
+                    </div>
+                </div>
+                <div class="intel-card">
+                    <div class="intel-header">
+                        <span class="intel-type">업무 협조 연락(지방 경찰서)</span>
+                        <span class="intel-confidence">15분</span>
+                    </div>
+                    <div class="intel-content">
+                        현재 확산 속도 및 방향을 고려했을때 지방 경찰서에 교통, 현장 통제를 요청해야합니다.
+                    </div>
+                </div>
+                
+            </div>
+        </aside>
+    </div>
+
+    <!-- Multi-view Container -->
+    <div class="multi-view-container">
+        <!-- Left Sidebar (same as single view) -->
+        <aside class="sidebar">
+            <div class="sidebar-section">
+                <div class="sidebar-title">
+                    <i class="fas fa-exclamation-triangle"></i>
+                    위협 수준
+                </div>
+                <div class="threat-level">
+                    <div class="threat-level-header">
+                        <div class="threat-level-title">HIGH RISK</div>
+                        <div class="threat-badge">ACTIVE</div>
+                    </div>
+                    <div class="threat-details">
+                        강풍과 건조한 날씨로 인해 산불 확산 위험이 높습니다. 
+                        실시간 모니터링이 진행 중입니다.
+                    </div>
+                </div>
+            </div>
+
+            <div class="sidebar-section">
+                <div class="sidebar-title">
+                    <i class="fas fa-truck"></i>
+                    소방 자원
+                </div>
+                <div class="resource-panel">
+                    <div class="resource-grid">
+                        <div class="resource-item firetruck" draggable="true" data-resource="firetruck">
+                            <div class="resource-available">8</div>
+                            <i class="fas fa-truck resource-icon"></i>
+                            <div class="resource-name">소방차</div>
+                            <div class="resource-count">8대 사용가능</div>
+                        </div>
+                        <div class="resource-item helicopter" draggable="true" data-resource="helicopter">
+                            <div class="resource-available">3</div>
+                            <i class="fas fa-helicopter resource-icon"></i>
+                            <div class="resource-name">소방헬기</div>
+                            <div class="resource-count">3대 사용가능</div>
+                        </div>
+                        <div class="resource-item personnel" draggable="true" data-resource="personnel">
+                            <div class="resource-available">45</div>
+                            <i class="fas fa-users resource-icon"></i>
+                            <div class="resource-name">소방인력</div>
+                            <div class="resource-count">45명 사용가능</div>
+                        </div>
+                        <div class="resource-item water" draggable="true" data-resource="water">
+                            <div class="resource-available">12</div>
+                            <i class="fas fa-tint resource-icon"></i>
+                            <div class="resource-name">급수지</div>
+                            <div class="resource-count">1 곳</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="sidebar-section">
+                <div class="sidebar-title">
+                    <i class="fas fa-cogs"></i>
+                    시뮬레이션 제어
+                </div>
+                <div class="intel-card">
+                    <div class="intel-header">
+                        <span class="intel-type">전체 제어</span>
+                        <span class="intel-confidence">MASTER</span>
+                    </div>
+                    <div style="display: flex; gap: 5px; margin-top: 8px;">
+                        <button class="control-btn" onclick="controlAllSimulations('play')">
+                            <i class="fas fa-play"></i>
+                        </button>
+                        <button class="control-btn" onclick="controlAllSimulations('pause')">
+                            <i class="fas fa-pause"></i>
+                        </button>
+                        <button class="control-btn" onclick="controlAllSimulations('stop')">
+                            <i class="fas fa-stop"></i>
+                        </button>
+                    </div>
+                </div>
+                <div class="intel-section">
+                        <div class="intel-title">
+                            <i class="fas fa-cloud-sun"></i>
+                            기상 정보
+                        </div>
+                        <div class="weather-widget">
+                            <div class="weather-header">
+                                <div>
+                                    <div class="weather-temp">23°C</div>
+                                    <div class="weather-condition">맑음, 강풍</div>
+                                </div>
+                                <i class="fas fa-sun" style="font-size: 32px; color: #ffa500;"></i>
+                            </div>
+                            <div class="weather-details">
+                                <div class="weather-item">
+                                    풍속: <span class="weather-value">15 m/s</span>
+                                </div>
+                                <div class="weather-item">
+                                    습도: <span class="weather-value">25%</span>
+                                </div>
+                                <div class="weather-item">
+                                    풍향: <span class="weather-value">북서</span>
+                                </div>
+                                <div class="weather-item">
+                                    가시거리: <span class="weather-value">10km</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+            </div>
+        </aside>
+
+        <!-- Multi-view Grid -->
+        <main class="main-content">
+            <div class="multi-view-grid">
+                <!-- Simulation View 1 -->
+                <div class="simulation-view active" data-simulation="1">
+                    <div class="view-header">
+                        <div class="view-title">시나리오 A: 강풍 조건</div>
+                    </div>
+                    <div class="mini-map" id="map-sim-1">
+                        <div class="mini-map-overlay" ></div>
+                        <div class="drop-zone" data-simulation="1"></div>
+                        <div class="mini-fire-marker" style="top: 30%; left: 40%;"></div>
+                        <div class="mini-fire-marker" style="top: 35%; left: 45%;"></div>
+                        <div class="resource-marker firetruck" style="top: 60%; left: 30%;">🚒</div>
+                        <div class="resource-marker helicopter" style="top: 20%; left: 60%;">🚁</div>
+                    </div>
+
+                </div>
+
+                <!-- Simulation View 2 -->
+                <div class="simulation-view" data-simulation="2">
+                    <div class="view-header">
+                        <div class="view-title">시나리오 B: 건조 조건</div>
+                    </div>
+                    <div class="mini-map" id="map-sim-2">
+                        <div class="mini-map-overlay"></div>
+                        <div class="drop-zone" data-simulation="2"></div>
+                        <div class="mini-fire-marker" style="top: 50%; left: 25%;"></div>
+                        <div class="mini-fire-marker" style="top: 55%; left: 30%;"></div>
+                        <div class="resource-marker personnel" style="top: 70%; left: 40%;">👥</div>
+                        <div class="resource-marker water" style="top: 40%; left: 70%;">💧</div>
+                    </div>
+                </div>
+
+                <!-- Simulation View 3 -->
+                <div class="simulation-view" data-simulation="3">
+                    <div class="view-header">
+                        <div class="view-title">시나리오 C: 복합 조건</div>
+                    </div>
+                    <div class="mini-map" id="map-sim-3">
+                        <div class="mini-map-overlay"></div>
+                        <div class="drop-zone" data-simulation="3"></div>
+                        <div class="mini-fire-marker" style="top: 40%; left: 60%;"></div>
+                        <div class="mini-fire-marker" style="top: 45%; left: 65%;"></div>
+                        <div class="mini-fire-marker" style="top: 50%; left: 70%;"></div>
+                        <div class="resource-marker firetruck" style="top: 80%; left: 50%;">🚒</div>
+                        <div class="resource-marker helicopter" style="top: 10%; left: 80%;">🚁</div>
+                        <div class="resource-marker personnel" style="top: 60%; left: 20%;">👥</div>
+                    </div>
+                </div>
+
+                <!-- Simulation View 4 -->
+                <div class="simulation-view" data-simulation="4">
+                    <div class="view-header">
+                        <div class="view-title">시나리오 D: 최악 조건</div>
+                    </div>
+                    <div class="mini-map" id="map-sim-4">
+                        <div class="mini-map-overlay"></div>
+                        <div class="drop-zone" data-simulation="4"></div>
+                        <div class="mini-fire-marker" style="top: 20%; left: 30%;"></div>
+                        <div class="mini-fire-marker" style="top: 60%; left: 50%;"></div>
+                        <div class="mini-fire-marker" style="top: 80%; left: 70%;"></div>
+                        <div class="resource-marker water" style="top: 50%; left: 80%;">💧</div>
+                    </div>
+                </div>
+            </div>
+        </main>
+
+        <!-- Right Panel (same as single view) -->
+         <aside class="right-panel">
+            <div class="intel-section">
+
+                <!-- 탭 버튼 -->
+                <div class="senario-tab-buttons" style="margin-top:15px;">
+                    <button class="senario-tab-btn active" onclick="openSenarioTab(event, 'senario-compare')">전략 시나리오 비교</button>
+                    <button class="senario-tab-btn" onclick="openSenarioTab(event, 'senario-detail')">전략 이력 관리</button>
+                </div>
+
+                <!-- 시나리오 비교 탭 -->
+                <div id="senario-compare" class="senario-tab-content active">
+                    <div class="intel-card">
+                        <span class="intel-title">진화 효율 지표</span>
+                        <div class="senario-card" style="display: grid; grid-template-columns: repeat(2, 1fr); grid-gap: 5px;">
+                            <div class="intel-section">
+                                <div class="senario-widget">
+                                    <div class="senario-header">
+                                        <div>시나리오 A</div>
+                                    </div>
+                                    <div class="senario-contents"> 35,565</div>
+                                    <div class="senario-contents">진화면적(km²)</div>
+                                    <div class="indicator up">기존대비</div>
+                                </div>
+                            </div>
+
+                            <div class="intel-section">
+                                <div class="senario-widget">
+                                    <div class="senario-header">
+                                        <div>시나리오 B</div>
+                                    </div>
+                                    <div class="senario-contents"> 28,744</div>
+                                    <div class="senario-contents">진화면적(km²)</div>
+                                    <div class="indicator down">기존대비</div>
+                                </div>
+                            </div>
+
+                            <div class="intel-section">
+                                <div class="senario-widget">
+                                    <div class="senario-header">
+                                        <div>시나리오 C</div>
+                                    </div>
+                                    <div class="senario-contents"> 31,200</div>
+                                    <div class="senario-contents">진화면적(km²)</div>
+                                    <div class="indicator up">기존대비</div>
+                                </div>
+                            </div>
+
+                            <div class="intel-section">
+                                <div class="senario-widget">
+                                    <div class="senario-header">
+                                        <div>시나리오 D</div>
+                                    </div>
+                                    <div class="senario-contents"> 20,368</div>
+                                    <div class="senario-contents">진화면적(km²)</div>
+                                    <div class="indicator down">기존대비</div>
+                                </div>
+                            </div>
+
+                        </div>
+                    </div>
+                    <div class="intel-card" style="padding:5px;">
+                        <span class="intel-title">자원배치 효율</span>
+                        <div class="senario-card" style="display: grid; grid-template-columns: repeat(2, 1fr); grid-gap: 14px;">
+                            <div class="intel-section">
+                                <div class="senario-widget">
+                                    <div class="senario-header">
+                                        <div>시나리오 A</div>
+                                    </div>
+                                    <div class="efficiency-bar">
+                                        <span class="label">효율성</span>
+                                        <div class="bar">
+                                            <div class="fill" style="width: 74%;"></div>
+                                        </div>
+                                        <span class="value">74%</span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="intel-section">
+                                <div class="senario-widget">
+                                    <div class="senario-header">
+                                        <div>시나리오 B</div>
+                                    </div>
+                                    <div class="efficiency-bar">
+                                        <span class="label">효율성</span>
+                                        <div class="bar">
+                                            <div class="fill" style="width: 71%;"></div>
+                                        </div>
+                                        <span class="value">71%</span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="intel-section">
+                                <div class="senario-widget">
+                                    <div class="senario-header">
+                                        <div>시나리오 C</div>
+                                    </div>
+                                    <div class="efficiency-bar">
+                                        <span class="label">효율성</span>
+                                        <div class="bar">
+                                            <div class="fill" style="width: 72%;"></div>
+                                        </div>
+                                        <span class="value">72%</span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="intel-section">
+                                <div class="senario-widget">
+                                    <div class="senario-header">
+                                        <div>시나리오 D</div>
+                                    </div>
+                                    <div class="efficiency-bar">
+                                        <span class="label">효율성</span>
+                                        <div class="bar">
+                                            <div class="fill" style="width: 56%;"></div>
+                                        </div>
+                                        <span class="value">56%</span>
+                                    </div>
+                                </div>
+                            </div>
+
+                        </div>
+                    </div>
+                    <div class="intel-card">
+                        <span class="intel-title">예상 피해 규모</span>
+                        <div class="senario-card" style="display: grid; grid-template-columns: repeat(2, 1fr); grid-gap: 14px;">
+                            <div class="intel-section">
+                                <div class="senario-widget">
+                                    <div class="senario-header">
+                                        <div>시나리오 A</div>
+                                    </div>
+                                    <div class="senario-contents"> 20ha</div>
+                                    <div class="senario-contents">피해면적</div>
+                                    <div class="indicator up">최소 피해</div>
+                                </div>
+                            </div>
+
+                            <div class="intel-section">
+                                <div class="senario-widget">
+                                    <div class="senario-header">
+                                        <div>시나리오 B</div>
+                                    </div>
+                                    <div class="senario-contents"> 25ha</div>
+                                    <div class="senario-contents">피해면적</div>
+                                    <div class="indicator down">중간 피해</div>
+                                </div>
+                            </div>
+
+                            <div class="intel-section">
+                                <div class="senario-widget">
+                                    <div class="senario-header">
+                                        <div>시나리오 C</div>
+                                    </div>
+                                    <div class="senario-contents"> 23ha</div>
+                                    <div class="senario-contents">피해면적</div>
+                                    <div class="indicator down">중간 피해</div>
+                                </div>
+                            </div>
+
+                            <div class="intel-section">
+                                <div class="senario-widget">
+                                    <div class="senario-header">
+                                        <div>시나리오 D</div>
+                                    </div>
+                                    <div class="senario-contents"> 28ha</div>
+                                    <div class="senario-contents">피해면적</div>
+                                    <div class="indicator down">최대 피해</div>
+                                </div>
+                            </div>
+
+                        </div>
+                    </div>
+                    <div class="intel-card">
+                        <span class="intel-title">예상 진화 시간</span>
+                        <div class="senario-card" style="display: grid; grid-template-columns: repeat(2, 1fr); grid-gap: 14px;">
+                            <div class="intel-section">
+                                <div class="senario-widget">
+                                    <div class="senario-header">
+                                        <div>시나리오 A</div>
+                                    </div>
+                                    <div class="senario-contents" style="font-size:15px; font-weight:800;"> 2시간 이내</div>
+                                </div>
+                            </div>
+
+                            <div class="intel-section">
+                                <div class="senario-widget">
+                                    <div class="senario-header">
+                                        <div>시나리오 B</div>
+                                    </div>
+                                    <div class="senario-contents" style="font-size:15px; font-weight:800;"> 5시간 이상</div>
+                                </div>
+                            </div>
+
+                            <div class="intel-section">
+                                <div class="senario-widget">
+                                    <div class="senario-header">
+                                        <div>시나리오 C</div>
+                                    </div>
+                                    <div class="senario-contents" style="font-size:15px; font-weight:800;"> 3시간 이상</div>
+                                </div>
+                            </div>
+
+                            <div class="intel-section">
+                                <div class="senario-widget">
+                                    <div class="senario-header">
+                                        <div>시나리오 D</div>
+                                    </div>
+                                    <div class="senario-contents" style="font-size:15px; font-weight:800;"> 6시간 이상</div>
+                                </div>
+                            </div>
+
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 상세 비교 탭 -->
+                <div id="senario-detail" class="senario-tab-content">
+                    <div class="intel-card">
+                        <div class="intel-header">
+                            <span class="intel-type">2020-04-18, 건조, 헬기 조기 투입</span>
+                        </div>
+                        <div class="intel-content">
+                            경기도 김포시 하성리 산불
+                                <button class="control-btn active" id="simstartbtn" style="margin-left: 15px;" >
+                                    <i class="fas fa-play"></i> 전략 이력 보기
+                                </button>
+                        </div>
+                    </div>
+                    <div class="intel-card">
+                        <div class="intel-header">
+                            <span class="intel-type">2021-12-11, 건조, 초기 진화 실패</span>
+                        </div>
+                        <div class="intel-content">
+                            강원도 강릉시 송정동 산불
+                            <button class="control-btn active" style="margin-left: 15px;">
+                                <i class="fas fa-play"></i> 전략 이력 보기
+                            </button>
+                        </div>
+                    </div>
+                    <div class="intel-card">
+                        <div class="intel-header">
+                            <span class="intel-type">2023-10-29, 보통, 민가 피해 저지</span>
+                        </div>
+                        <div class="intel-content">
+                            대구광역시 용산동 산불
+                            <button class="control-btn active" style="margin-left: 15px;">
+                                <i class="fas fa-play"></i> 전략 이력 보기
+                            </button>
+                        </div>
+                    </div>
+                    <div class="intel-card">
+                        <div class="intel-header">
+                            <span class="intel-type">2018-10-22, 보통, 민가 피해 저지</span>
+                        </div>
+                        <div class="intel-content">
+                            강원도 동해시 산불
+                            <button class="control-btn active" style="margin-left: 15px;">
+                                <i class="fas fa-play"></i> 전략 이력 보기
+                            </button>
+                        </div>
+                    </div>
+                    <div class="intel-card">
+                        <div class="intel-header">
+                            <span class="intel-type">2011-01-02, 건조, 헬기 활용</span>
+                        </div>
+                        <div class="intel-content">
+                            대구광역시 중구 산불
+                            <button class="control-btn active" style="margin-left: 15px;">
+                                <i class="fas fa-play"></i> 전략 이력 보기
+                            </button>
+                        </div>
+                    </div>
+                    <div class="intel-card">
+                        <div class="intel-header">
+                            <span class="intel-type">2014-02-07, 맑음, 해병대 자원 투입</span>
+                        </div>
+                        <div class="intel-content">
+                            경북 포항시 산불
+                            <button class="control-btn active" style="margin-left: 15px;">
+                                <i class="fas fa-play"></i> 전략 이력 보기
+                            </button>
+                        </div>
+                    </div>
+                    <div class="intel-card">
+                        <div class="intel-header">
+                            <span class="intel-type">2016-10-12, 건조, SOC 피해 저지</span>
+                        </div>
+                        <div class="intel-content">
+                            전남 무주시 산불
+                            <button class="control-btn active" style="margin-left: 15px;">
+                                <i class="fas fa-play"></i> 전략 이력 보기
+                            </button>
+                        </div>
+                    </div>
+                    <div class="intel-card">
+                        <div class="intel-header">
+                            <span class="intel-type">2020-10-29, 보통, 민가 피해 저지</span>
+                        </div>
+                        <div class="intel-content">
+                            경남 거제시 산불
+                            <button class="control-btn active" style="margin-left: 15px;">
+                                <i class="fas fa-play"></i> 전략 이력 보기
+                            </button>
+                        </div>
+                    </div>
+                    <div class="intel-card">
+                        <div class="intel-header">
+                            <span class="intel-type">2023-10-29, 보통, 민가 피해 저지</span>
+                        </div>
+                        <div class="intel-content">
+                            대구광역시 용산동 산불
+                            <button class="control-btn active" style="margin-left: 15px;">
+                                <i class="fas fa-play"></i> 전략 이력 보기
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </aside>
+    </div>
+    <script>
+
+        let miniMapsObj = {};
+        let singlemapObj;
+        const mapIds = ['map-sim-1', 'map-sim-2', 'map-sim-3', 'map-sim-4','simul-map'];
+        const center = [36.583084, 128.708841];
+        const fireMarkers = [
+            { lat: 36.583084, lng: 128.708841, icon: "🔥", popup: "🔥 화재 발생" }, // 중심 근처
+            { lat: 36.490, lng: 128.647, icon: "🔥", popup: "🔥 화재 확산" }  // 조금 이동
+        ];
+
+        const resourceMarkers = [
+            { lat: 37.565, lng: 126.975, icon: "🚒", popup: "소방차" },
+            { lat: 37.58, lng: 126.99, icon: "🚁", popup: "헬기" }
+        ];
+
+        function createFirePolygon(centerLat, centerLng, radius = 0.001, points = 6) {
+            const coords = [];
+            for (let i = 0; i < points; i++) {
+                const angle = (i / points) * 2 * Math.PI;
+                // radius 범위 안에서 랜덤 변동 추가
+                const r = radius * (5.0 + Math.random()); 
+                const lat = centerLat + r * Math.sin(angle);
+                const lng = centerLng + r * Math.cos(angle);
+                coords.push([lat, lng]);
+            }
+            return coords;
+        }
+        function randomInt(min, max) {
+            return Math.floor(Math.random() * (max - min + 1)) + min;
+        }
+
+
+        function initMaps(mapIds, center, fireMarkers, resourceMarkers) {
+            const maps = {};
+            const f = fireMarkers[0];
+            const redPolygonCoords = createFirePolygon(f.lat, f.lng, 0.0015, 8); // 8점 불규칙 다각형
+
+            const icons = {
+                firetruck: '🚒',
+                helicopter: '🚁',
+                personnel: '👥',
+                water: '💧'
+            };
+            const iconCounts = {
+                firetruck: [3,7],
+                helicopter: [1,5],
+                personnel: [5,8],
+                water: [0,2]
+            };
+
+            const deployedIconCounts = {
+                firetruck:0,
+                helicopter:0,
+                personnel:0,
+                water:0
+            };
+
+
+            const fireIcon = L.divIcon({
+                className: 'fire-marker-leaflet', // CSS에서 정의한 클래스 사용
+                html: '<div style="width: 10px; height: 10px; background: radial-gradient(circle, #ff0000 0%, #fd3402 50%, transparent 70%); border-radius: 50%; animation: fireGlow 2s infinite alternate; "></div>',
+                iconSize: [20, 20],       // CSS width/height와 맞춰주면 됨
+                iconAnchor: [10, 10]      // 중심이 가운데 오도록 조정
+            });
+                                // Add some fire markers
+
+
+            mapIds.forEach((id, index) => {
+                let map;
+
+                if (!document.getElementById(id)._leaflet_id) {
+                    map = L.map(id, {
+                        center: center,
+                        zoom: 13,
+                        zoomControl: false, // 좌상단 기본 줌 컨트롤 제거
+                        attributionControl: false
+                    });
+                } else {
+                    map = document.getElementById(id)._leafletMap; // 기존 지도 가져오기
+                }
+
+                map.invalidateSize();
+                map.whenReady(() => {
+                const svg = map.getPanes().overlayPane.querySelector("svg");
+
+                if (svg && !svg.querySelector("#fireGradient")) {
+                    const defs = document.createElementNS("http://www.w3.org/2000/svg", "defs");
+                    defs.innerHTML = `
+                    <linearGradient id="fireGradient" x1="0%" y1="0%" x2="100%" y2="0%">
+                        <stop offset="0%"   stop-color="red" />
+                        <stop offset="45%"  stop-color="red" />
+                        <stop offset="50%"  stop-color="yellow" />
+                        <stop offset="55%"  stop-color="red" />
+                        <stop offset="100%" stop-color="red" />
+                    </linearGradient>>
+                    <linearGradient id="firepredictionGradient" x1="0" y1="0" x2="1" y2="0">
+                        <stop offset="0%" stop-color="#ffd700">
+                            <animate attributeName="stop-color" values="#ffd700;#ffae42;#ffd700" dur="2s" repeatCount="indefinite" />
+                        </stop>
+                        <stop offset="100%" stop-color="#ffae42">
+                            <animate attributeName="stop-color" values="#ffae42;#ffd700;#ffae42" dur="2s" repeatCount="indefinite" />
+                        </stop>
+                    </linearGradient>
+                    `;
+                    svg.prepend(defs);
+                }
+                });
+
+                // 화재 마커 추가
+                fireMarkers.forEach(f => {
+                    L.marker([f.lat, f.lng], { 
+                        icon: fireIcon 
+                    }).addTo(map)
+                    .bindPopup(f.popup);
+                });
+
+
+                // 위성 지도 레이어
+                L.tileLayer(
+                    "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}", 
+                    { maxZoom: 19 }
+                ).addTo(map);
+                
+
+                const yellowPolygonCoords = createFirePolygon(f.lat, f.lng, 0.002, 13); // 반경 조금 더 크게      
+
+                const yellowPolygon = L.polygon(redPolygonCoords, {
+                    weight: 4,
+                    fillOpacity: 0.3,
+                    className: "fire-boundary"
+                }).addTo(map);
+
+                L.polygon(yellowPolygonCoords, {
+                    weight: 4,
+                    fillOpacity: 0.2,
+                    className: "fireprediction-boundary"
+                }).addTo(map);
+
+                const yellowCenter = yellowPolygon.getCenter();
+                console.log(yellowCenter);
+
+
+                for (const type in icons) {
+                    const count = randomInt(iconCounts[type][0], iconCounts[type][1]);
+                    //const count = iconCounts[type];
+                    deployedIconCounts[type] = count;
+
+                    for (let i = 0; i < count; i++) {
+                        // 노란 폴리곤 중심 근처 ±0.003 정도 랜덤
+                        const offsetLat = (Math.random() - 0.5) * 0.045; 
+                        const offsetLng = (Math.random() - 0.5) * 0.045;
+                        const lat = yellowCenter.lat + offsetLat;
+                        const lng = yellowCenter.lng + offsetLng;
+
+                        // 폴리곤 안/밖 랜덤 결정
+                        const inside = Math.random() < 0.5; // 50% 확률
+                        let markerLat = lat;
+                        let markerLng = lng;
+
+                        if (inside && !yellowPolygon.getBounds().contains([lat, lng])) {
+                            // 안쪽으로 강제 조정: 폴리곤 중심쪽으로 이동
+                            markerLat = yellowCenter.lat + (lat - yellowCenter.lat) * 0.5;
+                            markerLng = yellowCenter.lng + (lng - yellowCenter.lng) * 0.5;
+                        } 
+                        // 밖이면 그대로 둠
+
+                        L.marker([markerLat, markerLng], {
+                            icon: L.divIcon({ className: 'custom-icon', html: icons[type] })
+                        })
+                        .addTo(map)
+                        .bindPopup(`${type} 위치 ${inside ? '(폴리곤 안)' : '(폴리곤 밖)'}`);
+                    }
+
+                }
+                                
+                const scoreControl = L.control({ position: 'topright' });
+
+                scoreControl.onAdd = function(map) {
+                    const div = L.DomUtil.create('div', 'score-control');
+                    div.style.background = 'white';
+                    div.style.padding = '6px 10px';
+                    div.style.borderRadius = '5px';
+                    div.style.color = 'black';
+                    div.style.boxShadow = '0 0 5px rgba(0,0,0,0.3)';
+                    div.style.margin = '0';        // 기본 margin 제거
+
+                    const fireScore = Math.floor(Math.random() * (92 - 75 + 1)) + 75;
+                    const resourceScore = Math.floor(Math.random() * (92 - 75 + 1)) + 75;
+
+                    div.innerHTML = `
+                        <div style="margin-bottom:6px;"><b>화재 대응 총점:</b> ${fireScore}점</div>
+                        <div><b>자원 배치 총점:</b> ${resourceScore}점</div>`;
+                    return div;
+                };
+
+                scoreControl.addTo(map);
+
+                // 컨트롤 전체를 아래로 내리기
+                document.querySelectorAll('.score-control').forEach((ctrl, index) => {
+                    // 지도별로 다른 top 위치를 줄 수도 있고, 동일하게 60px 아래로
+                    ctrl.parentElement.style.top = '60px';
+                });
+
+                const legend = L.control({ position: 'bottomright' });
+
+                legend.onAdd = function(map) {
+                    const div = L.DomUtil.create('div', 'info legend');
+                    div.style.background = 'white';
+                    div.style.padding = '8px';
+                    div.style.borderRadius = '5px';
+                    div.style.color = 'black';
+                    div.style.boxShadow = '0 0 5px rgba(0,0,0,0.3)';
+
+                    div.innerHTML += `<i style="background:red; width:18px; height:18px; display:inline-block; margin-right:5px;"></i> 산불 영역<br>`;
+                    div.innerHTML += `<i style="background:yellow; width:18px; height:18px; display:inline-block; margin-right:5px;"></i> 확산 예측 영역<br>`;
+                    div.innerHTML += `
+                        <i style="
+                            width: 12px;
+                            height: 12px;
+                            display: inline-block;
+                            margin-left: 5px;
+                            margin-top: 5px;
+                            margin-right: 5px;
+                            border-radius: 50%;
+                            background: radial-gradient(circle, #ff0000 0%, #fd3402 50%, transparent 70%);
+                            animation: fireGlow 2s infinite alternate;">
+                        </i> 발화 추정지<br>
+                        `;
+
+                    return div;
+                };
+
+                legend.addTo(map);
+
+                const resourceTable = L.control({ position: 'topleft' });
+
+                resourceTable.onAdd = function(map) {
+                    const div = L.DomUtil.create('div', 'info legend');
+                    div.style.background = 'rgba(255, 255, 255, 0.9)';
+                    div.style.padding = '8px';
+                    div.style.borderRadius = '5px';
+                    div.style.color = 'black';
+                    div.style.marginTop = '65px';
+                    div.style.boxShadow = '0 0 5px rgba(0,0,0,0.3)';
+                    // 자원 마커 범례 추가
+                    div.innerHTML += `<b>자원 배치</b><br>`;
+
+                    const resourceLabels = {
+                        firetruck: "소방차",
+                        helicopter: "헬기",
+                        personnel: "인력",
+                        water: "급수지"
+                    };
+
+                    for (const type in icons) {
+                        div.innerHTML += `${icons[type]} ${resourceLabels[type]}: ${deployedIconCounts[type]} <br>`;
+                    }
+
+                    return div;
+                };
+
+                resourceTable.addTo(map);
+
+
+            maps[index + 1] = map;
+        });
+
+
+            return maps;
+        }
+        function openSenarioTab(evt, tabId) {
+            const clickedBtn = evt.currentTarget;
+            const targetTab = document.getElementById(tabId);
+
+            // 이미 활성화된 경우 → 비활성화
+            if (clickedBtn.classList.contains("active")) {
+                clickedBtn.classList.remove("active");
+                targetTab.classList.remove("active");
+            } else {
+                // 모든 탭과 버튼 비활성화
+                document.querySelectorAll(".senario-tab-content").forEach(tab => tab.classList.remove("active"));
+                document.querySelectorAll(".senario-tab-btn").forEach(btn => btn.classList.remove("active"));
+
+                // 클릭한 탭과 버튼 활성화
+                targetTab.classList.add("active");
+                clickedBtn.classList.add("active");
+            }
+        }
+
+        
+        function initializeSingleViewMap(firemarkers) {
+            try {
+
+                const icons = {
+                    firetruck: '🚒',
+                    helicopter: '🚁',
+                    personnel: '👥',
+                    water: '💧'
+                };
+                const iconCounts = {
+                    firetruck: [3,7],
+                    helicopter: [1,5],
+                    personnel: [5,8],
+                    water: [0,2]
+                };
+
+                const deployedIconCounts = {
+                    firetruck:0,
+                    helicopter:0,
+                    personnel:0,
+                    water:0
+                };
+                
+                console.log(center);
+                const f = fireMarkers[0];
+                const redPolygonCoords = createFirePolygon(f.lat, f.lng, 0.0015, 8); // 8점 불규칙 다각형
+                
+                // Initialize the map
+                const singleViewMap = L.map('singleViewMap', {
+                    zoomControl: false,
+                    attributionControl: false
+                }).setView([center[0], center[1]], 14); // Seoul coordinates
+
+                // Add satellite tile layer
+                L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+                    maxZoom: 18,
+                    opacity: 0.9,
+                    attribution: 'Tiles &copy; Esri &mdash; Source: Esri, i-cubed, USDA, USGS, AEX, GeoEye, Getmapping, Aerogrid, IGN, IGP, UPR-EGP, and the GIS User Community'
+                }).addTo(singleViewMap);
+
+                const yellowPolygon = L.polygon(redPolygonCoords,{
+                    weight: 4,
+                    fillOpacity: 0.1,
+                    className: "fire-boundary"
+                }).addTo(singleViewMap)
+
+                const yellowPolygonCoords = createFirePolygon(f.lat, f.lng, 0.002, 13); // 반경 조금 더 크게
+
+                L.polygon(yellowPolygonCoords, {
+                    weight: 4,
+                    fillOpacity: 0.2,
+                    className: "fireprediction-boundary"
+                }).addTo(singleViewMap);
+
+                const yellowCenter = yellowPolygon.getCenter();
+
+
+                // Add fire markers
+                const fireIcon = L.divIcon({
+                    className: 'fire-marker-leaflet', // CSS에서 정의한 클래스 사용
+                    html: '<div style="width: 12px; height: 12px; background: radial-gradient(circle, #ff0000 0%, #fd3402 50%, transparent 70%); border-radius: 50%; animation: fireGlow 2s infinite alternate; "></div>',
+                    iconSize: [20, 20],       // CSS width/height와 맞춰주면 됨
+                    iconAnchor: [10, 10]      // 중심이 가운데 오도록 조정
+                });
+                                // Add some fire markers
+                L.marker([f.lat, f.lng], {icon: fireIcon}).addTo(singleViewMap);
+                L.marker([f.lat, f.lng], {icon: fireIcon}).addTo(singleViewMap);
+
+                for (const type in icons) {
+                    const count = randomInt(iconCounts[type][0], iconCounts[type][1]);
+                    //const count = iconCounts[type];
+                    deployedIconCounts[type] = count;
+
+                    for (let i = 0; i < count; i++) {
+                        // 노란 폴리곤 중심 근처 ±0.003 정도 랜덤
+                        const offsetLat = (Math.random() - 0.5) * 0.045; 
+                        const offsetLng = (Math.random() - 0.5) * 0.045;
+                        const lat = yellowCenter.lat + offsetLat;
+                        const lng = yellowCenter.lng + offsetLng;
+
+                        // 폴리곤 안/밖 랜덤 결정
+                        const inside = Math.random() < 0.5; // 50% 확률
+                        let markerLat = lat;
+                        let markerLng = lng;
+
+                        if (inside && !yellowPolygon.getBounds().contains([lat, lng])) {
+                            // 안쪽으로 강제 조정: 폴리곤 중심쪽으로 이동
+                            markerLat = yellowCenter.lat + (lat - yellowCenter.lat) * 0.5;
+                            markerLng = yellowCenter.lng + (lng - yellowCenter.lng) * 0.5;
+                        } 
+                        // 밖이면 그대로 둠
+
+                        L.marker([markerLat, markerLng], {
+                            icon: L.divIcon({ className: 'custom-icon', html: icons[type] })
+                        })
+                        .addTo(singleViewMap)
+                        .bindPopup(`${type} 위치 ${inside ? '(폴리곤 안)' : '(폴리곤 밖)'}`);
+                    }
+
+                }
+                
+                const legend = L.control({ position: 'topright' });
+
+                legend.onAdd = function(map) {
+                    const div = L.DomUtil.create('div', 'info legend');
+                    div.style.background = 'white';
+                    div.style.padding = '8px';
+                    div.style.borderRadius = '5px';
+                    div.style.color = 'black';
+                    div.style.boxShadow = '0 0 5px rgba(0,0,0,0.3)';
+
+                    div.innerHTML += `<i style="background:red; width:18px; height:18px; display:inline-block; margin-right:5px;"></i> 산불 영역<br>`;
+                    div.innerHTML += `<i style="background:yellow; width:18px; height:18px; display:inline-block; margin-right:5px;"></i> 확산 예측 영역<br>`;
+                    div.innerHTML += `
+                        <i style="
+                            width: 12px;
+                            height: 12px;
+                            display: inline-block;
+                            margin-left: 5px;
+                            margin-top: 5px;
+                            margin-right: 5px;
+                            border-radius: 50%;
+                            background: radial-gradient(circle, #ff0000 0%, #fd3402 50%, transparent 70%);
+                            animation: fireGlow 2s infinite alternate;">
+                        </i> 발화 추정지<br>
+                        `;
+
+                    return div;
+                };
+
+                legend.addTo(singleViewMap);
+
+                const scoreControl = L.control({ position: 'topright' });
+                    scoreControl.onAdd = function(singleViewMap) {
+                    const div = L.DomUtil.create('div', 'score-control');
+                    div.style.background = 'white';
+                    div.style.padding = '6px 15px';
+                    div.style.borderRadius = '5px';
+                    div.style.color = 'black';
+                    div.style.boxShadow = '0 0 5px rgba(0,0,0,0.3)';
+                    div.style.margin = '5px';        // 기본 margin 제거
+
+                    const fireScore = Math.floor(Math.random() * (92 - 75 + 1)) + 75;
+                    const resourceScore = Math.floor(Math.random() * (92 - 75 + 1)) + 75;
+
+                    div.innerHTML = `
+                        <div style="margin-bottom:6px;"><b>화재 대응 총점:</b> ${fireScore}점</div>
+                        <div><b>자원 배치 총점:</b> ${resourceScore}점</div>`;
+                    return div;
+                };
+                scoreControl.addTo(singleViewMap);
+
+                const resourceTable = L.control({ position: 'topleft' });
+
+                resourceTable.onAdd = function(singleViewMap) {
+                    const div = L.DomUtil.create('div', 'info legend');
+                    div.style.background = 'rgba(255, 255, 255, 0.9)';
+                    div.style.padding = '8px';
+                    div.style.borderRadius = '5px';
+                    div.style.color = 'black';
+                    div.style.marginTop = '65px';
+                    div.style.boxShadow = '0 0 5px rgba(0,0,0,0.3)';
+                    // 자원 마커 범례 추가
+                    div.innerHTML += `<b>자원 배치</b><br>`;
+
+                    const resourceLabels = {
+                        firetruck: "소방차",
+                        helicopter: "헬기",
+                        personnel: "인력",
+                        water: "급수지"
+                    };
+
+                    for (const type in icons) {
+                        div.innerHTML += `${icons[type]} ${resourceLabels[type]}: ${deployedIconCounts[type]} <br>`;
+                    }
+
+                    return div;
+                };
+
+                resourceTable.addTo(singleViewMap);
+
+                // Store map reference for later use
+                window.singleViewMapInstance = singleViewMap;
+
+                
+                console.log('Single view map initialized successfully');
+                return singleViewMap;
+
+            } catch (error) {
+                console.error('Error initializing single view map:', error);
+            }
+        }
+
+
+        // Initialize the application
+        document.addEventListener('DOMContentLoaded', function() {
+            // Hide loading overlay after 2 seconds
+            setTimeout(() => {
+                document.getElementById('loadingOverlay').classList.add('hidden');
+            }, 2000);
+
+            // Update current time
+            function updateTime() {
+                const now = new Date();
+                const timeString = now.toLocaleTimeString('ko-KR', { 
+                    hour12: false,
+                    hour: '2-digit',
+                    minute: '2-digit',
+                    second: '2-digit'
+                });
+                document.getElementById('currentTime').textContent = timeString;
+            }
+
+            
+            updateTime();
+            setInterval(updateTime, 1000);
+
+            // Simulate dynamic fire markers
+            function addRandomFireMarker() {
+                const mapContainer = document.querySelector('.map-container');
+                const marker = document.createElement('div');
+                marker.className = 'fire-marker';
+                marker.style.top = Math.random() * 80 + 10 + '%';
+                marker.style.left = Math.random() * 80 + 10 + '%';
+                mapContainer.appendChild(marker);
+
+                // Remove marker after 10 seconds
+                setTimeout(() => {
+                    if (marker.parentNode) {
+                        marker.parentNode.removeChild(marker);
+                    }
+                }, 10000);
+            }
+            
+
+
+            // Add new fire markers every 5 seconds
+            //setInterval(addRandomFireMarker, 5000);
+
+            // Control button interactions
+            document.querySelectorAll('.control-btn').forEach(btn => {
+                btn.addEventListener('click', function() {
+                    // Remove active class from all buttons in the same group
+                    const group = this.closest('.control-group');
+                    group.querySelectorAll('.control-btn').forEach(b => b.classList.remove('active'));
+                    
+                    // Add active class to clicked button
+                    this.classList.add('active');
+                });
+            });
+
+            // Incident item interactions
+            document.querySelectorAll('.incident-item').forEach(item => {
+                item.addEventListener('click', function() {
+                    // Remove active class from all items
+                    document.querySelectorAll('.incident-item').forEach(i => i.classList.remove('active'));
+                    
+                    // Add active class to clicked item
+                    this.classList.add('active');
+                    
+                    // Simulate focusing on the incident location
+                    console.log('Focusing on incident:', this.querySelector('.incident-title').textContent);
+                });
+            });
+
+            // Intel card hover effects
+            document.querySelectorAll('.intel-card').forEach(card => {
+                card.addEventListener('mouseenter', function() {
+                    this.style.transform = 'translateY(-2px)';
+                    this.style.boxShadow = '0 4px 20px rgba(0, 255, 255, 0.1)';
+                });
+                
+                card.addEventListener('mouseleave', function() {
+                    this.style.transform = 'translateY(0)';
+                    this.style.boxShadow = 'none';
+                });
+            });
+
+            // Simulate real-time data updates
+            function updateIntelligenceData() {
+                const confidenceElements = document.querySelectorAll('.intel-confidence');
+                confidenceElements.forEach(el => {
+                    if (el.textContent.includes('%')) {
+                        const currentValue = parseInt(el.textContent);
+                        const newValue = Math.max(85, Math.min(99, currentValue + (Math.random() - 0.5) * 4));
+                        el.textContent = Math.round(newValue) + '%';
+                    }
+                });
+            }
+
+            // Update intelligence data every 30 seconds
+            setInterval(updateIntelligenceData, 30000);
+
+
+            // View toggle functionality
+            const singleViewBtn = document.getElementById('singleViewBtn');
+            const multiViewBtn = document.getElementById('multiViewBtn');
+            const mainContainer = document.querySelector('.main-container');
+            const multiViewContainer = document.querySelector('.multi-view-container');
+
+
+            singleViewBtn.addEventListener('click', function() {
+                singleViewBtn.classList.add('active');
+                multiViewBtn.classList.remove('active');
+                mainContainer.classList.remove('hidden');
+                multiViewContainer.classList.remove('active');
+                
+                // Resize single view map after view change
+                setTimeout(() => {
+                    if (window.singleViewMapInstance) {
+                        window.singleViewMapInstance.invalidateSize();
+                    }
+                }, 300);
+            });
+
+            multiViewBtn.addEventListener('click', function() {
+                multiViewBtn.classList.add('active');
+                singleViewBtn.classList.remove('active');
+                mainContainer.classList.add('hidden');
+                multiViewContainer.classList.add('active');
+                setTimeout(() => {
+                    miniMapsObj = initMaps(mapIds, center, fireMarkers, resourceMarkers);
+                }, 100);
+            });
+
+            // Drag and drop functionality for resources
+            let draggedResource = null;
+
+            document.querySelectorAll('.resource-item').forEach(item => {
+                item.addEventListener('dragstart', function(e) {
+                    draggedResource = this;
+                    this.classList.add('dragging');
+                    e.dataTransfer.setData('text/plain', this.dataset.resource);
+                });
+
+                item.addEventListener('dragend', function() {
+                    this.classList.remove('dragging');
+                    draggedResource = null;
+                });
+            });
+
+            // Drop zones for simulation views
+            document.querySelectorAll('.drop-zone').forEach(zone => {
+                zone.addEventListener('dragover', function(e) {
+                    e.preventDefault();
+                    this.classList.add('drag-over');
+                });
+
+                zone.addEventListener('dragleave', function() {
+                    this.classList.remove('drag-over');
+                });
+
+                zone.addEventListener('drop', function(e) {
+                    e.preventDefault();
+                    this.classList.remove('drag-over');
+                    
+                    if (draggedResource) {
+                        const resourceType = draggedResource.dataset.resource;
+                        const simulationId = this.dataset.simulation;
+                        deployResource(resourceType, simulationId, e.offsetX, e.offsetY);
+                    }
+                });
+            });
+
+            // Simulation view selection
+            document.querySelectorAll('.simulation-view').forEach(view => {
+                view.addEventListener('click', function() {
+                    document.querySelectorAll('.simulation-view').forEach(v => v.classList.remove('active'));
+                    this.classList.add('active');
+                });
+            });
+
+            console.log('FIRELINE Intelligence Platform initialized successfully');
+        });
+
+        // Deploy resource to simulation
+        function deployResource(resourceType, simulationId, x, y, iconSizePx=30) {
+            const simulationView = document.querySelector(`[data-simulation="${simulationId}"]`);
+            
+            let targetMap;
+            let mapObj;
+            if (simulationId === "0") {
+                targetMap = simulationView.querySelector('.leaflet-map');
+                mapObj = singlemapObj;
+            } else {
+                targetMap = simulationView.querySelector('.mini-map');
+                mapObj = miniMapsObj[simulationId];
+            }
+            
+            // Create resource marker
+            const marker = document.createElement('div');
+            marker.className = `resource-marker ${resourceType}`;
+            marker.style.left = (x / targetMap .offsetWidth * 100) + '%';
+            marker.style.top = (y / targetMap .offsetHeight * 100) + '%';
+            
+            // Add appropriate icon
+            const icons = {
+                firetruck: '🚒',
+                helicopter: '🚁',
+                personnel: '👥',
+                water: '💧',
+                commandCenter: '🏢',    // 통합지휘소
+                drone: '🛸'             // 예시 추가 아이콘 (드론)
+            };
+            marker.textContent = icons[resourceType];
+
+
+            const latlng = mapObj.containerPointToLatLng([x, y]);
+            targetMap .appendChild(marker);
+            const leafIcon = L.divIcon({
+                className: `resource-marker ${resourceType}`,
+                html: icons[resourceType], // 아이콘
+                iconSize: [iconSizePx/2, iconSizePx/2],
+                iconAnchor: [iconSizePx/2, iconSizePx/2]
+            });
+            L.marker(latlng, { icon: leafIcon, draggable: true }).addTo(mapObj);
+
+            // Update available count
+            const resourceItem = document.querySelector(`[data-resource="${resourceType}"]`);
+            const availableElement = resourceItem.querySelector('.resource-available');
+            const currentCount = parseInt(availableElement.textContent);
+            if (currentCount > 0) {
+                availableElement.textContent = currentCount - 1;
+            }
+            
+            // Add click to remove functionality
+            marker.addEventListener('click', function() {
+                this.remove();
+                availableElement.textContent = parseInt(availableElement.textContent) + 1;
+            });
+            
+            console.log(`Deployed ${resourceType} to simulation ${simulationId} at (${x}, ${y})`);
+        }
+
+        // Control all simulations
+        function controlAllSimulations(action) {
+            document.querySelectorAll('.simulation-view').forEach(view => {
+                const statusElement = view.querySelector('.view-status');
+                const statusText = statusElement.querySelector('span:last-child');
+                
+                switch(action) {
+                    case 'play':
+                        statusElement.className = 'view-status status-running';
+                        statusText.textContent = '실행중';
+                        break;
+                    case 'pause':
+                        statusElement.className = 'view-status status-paused';
+                        statusText.textContent = '일시정지';
+                        break;
+                    case 'stop':
+                        statusElement.className = 'view-status status-stopped';
+                        statusText.textContent = '정지';
+                        break;
+                }
+            });
+            
+            console.log(`All simulations ${action}`);
+        }
+        // Initialize role-based and panel functionality after DOM is loaded
+        function initializeRoleAndPanelFunctionality() {
+            // Role-based view functionality
+            document.querySelectorAll('.role-btn').forEach(btn => {
+                btn.addEventListener('click', function() {
+                    document.querySelectorAll('.role-btn').forEach(b => b.classList.remove('active'));
+                    this.classList.add('active');
+                    
+                    const role = this.dataset.role;
+                    switchToRoleView(role);
+                });
+            });
+
+            // Customization panel
+            const customizeBtn = document.getElementById('customizeBtn');
+            const closeCustomizeBtn = document.getElementById('closeCustomizeBtn');
+            
+            if (customizeBtn) {
+                customizeBtn.addEventListener('click', function() {
+                    const panel = document.getElementById('customizationPanel');
+                    if (panel) {
+                        panel.classList.add('active');
+                        console.log('Customization panel opened');
+                    }
+                });
+            }
+
+            if (closeCustomizeBtn) {
+                closeCustomizeBtn.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    const panel = document.getElementById('customizationPanel');
+                    if (panel) {
+                        panel.classList.remove('active');
+                        console.log('Customization panel closed');
+                    }
+                });
+            }
+
+            // Performance panel
+            const performanceBtn = document.getElementById('performanceBtn');
+            const closePerformanceBtn = document.getElementById('closePerformanceBtn');
+            
+            if (performanceBtn) {
+                performanceBtn.addEventListener('click', function() {
+                    const panel = document.getElementById('performancePanel');
+                    if (panel) {
+                        panel.classList.add('active');
+                        // Update performance metrics based on current role
+                        const activeRole = document.querySelector('.role-btn.active');
+                        if (activeRole) {
+                            updatePerformanceMetrics(activeRole.dataset.role);
+                        }
+                        console.log('Performance panel opened');
+                    }
+                });
+            }
+
+            if (closePerformanceBtn) {
+                closePerformanceBtn.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    const panel = document.getElementById('performancePanel');
+                    if (panel) {
+                        panel.classList.remove('active');
+                        console.log('Performance panel closed');
+                    }
+                });
+            }
+
+            const commandBtn= document.getElementById('commandBtn');
+            const closecommandBtn = document.getElementById('closecommandBtn');
+            
+            if (commandBtn) {
+                commandBtn.addEventListener('click', function() {
+                    const panel = document.getElementById('commandPanel');
+                    if (panel) {
+                        panel.classList.add('active');
+                    }
+                });
+            }
+
+            if (closecommandBtn) {
+                closecommandBtn.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    const panel = document.getElementById('commandPanel');
+                    if (panel) {
+                        panel.classList.remove('active');
+                        console.log('Performance panel closed');
+                    }
+                });
+            }
+            
+            const simStartBtn= document.getElementById('simstartbtn');
+            const closesimBtn = document.getElementById('closesimBtn');
+            
+            if (simStartBtn) {
+                simStartBtn.addEventListener('click', function() {
+                    const panel = document.getElementById('simPanel');
+                    if (panel) {
+                        panel.classList.add('active');
+                    }
+                });
+            }
+
+            if (closesimBtn) {
+                closesimBtn.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    const panel = document.getElementById('simPanel');
+                    if (panel) {
+                        panel.classList.remove('active');
+                        console.log('sim panel closed');
+                    }
+                });
+            }
+        }
+
+        // Call initialization function
+        initializeRoleAndPanelFunctionality();
+        
+        // Initialize with commander theme by default
+        document.body.classList.add('commander-theme');
+
+        // Add panel close functionality
+        function initializePanelCloseFunctionality() {
+            // Close panels when clicking outside
+            document.addEventListener('click', function(e) {
+                const customizationPanel = document.getElementById('customizationPanel');
+                const performancePanel = document.getElementById('performancePanel');
+                const commandPanel = document.getElementById('commandPanel');
+                const customizeBtn = document.getElementById('customizeBtn');
+                const performanceBtn = document.getElementById('performanceBtn');
+                const commandBtn = document.getElementById('commandBtn');
+                const simPanel = document.getElementById('simPanel');
+                const simstartBtn = document.getElementById('simstartbtn')
+                console.log(simstartBtn);
+
+                // Close customization panel if clicking outside
+                if (customizationPanel && customizationPanel.classList.contains('active')) {
+                    if (!customizationPanel.contains(e.target) && e.target !== customizeBtn) {
+                        customizationPanel.classList.remove('active');
+                        console.log('Customization panel closed by outside click');
+                    }
+                }
+                
+                // Close performance panel if clicking outside
+                if (performancePanel && performancePanel.classList.contains('active')) {
+                    if (!performancePanel.contains(e.target) && e.target !== performanceBtn) {
+                        performancePanel.classList.remove('active');
+                        console.log('Performance panel closed by outside click');
+                    }
+                }
+                // Close performance panel if clicking outside
+                if (commandPanel && commandPanel.classList.contains('active')) {
+                    if (!commandPanel.contains(e.target) && e.target !== commandBtn) {
+                        commandPanel.classList.remove('active');
+                        console.log('Performance panel closed by outside click');
+                    }
+                }
+                // Close performance panel if clicking outside
+                if (simPanel && simPanel.classList.contains('active')) {
+                    if (!simPanel.contains(e.target) && e.target !== simstartBtn) {
+                        simPanel.classList.remove('active');
+                        console.log('Performance panel closed by outside click');
+                    }
+                }
+            });
+            
+            // Close panels with ESC key
+            document.addEventListener('keydown', function(e) {
+                if (e.key === 'Escape') {
+                    const customizationPanel = document.getElementById('customizationPanel');
+                    const performancePanel = document.getElementById('performancePanel');
+                    const commandPanel = document.getElementById('commandPanel');
+                    const simstartPanel = document.getElementById('simuPanel');
+                    
+                    if (customizationPanel && customizationPanel.classList.contains('active')) {
+                        customizationPanel.classList.remove('active');
+                        console.log('Customization panel closed by ESC key');
+                    }
+                    
+                    if (performancePanel && performancePanel.classList.contains('active')) {
+                        performancePanel.classList.remove('active');
+                        console.log('Performance panel closed by ESC key');
+                    }
+                    if (commandPanel && commandPanel.classList.contains('active')) {
+                        commandPanel.classList.remove('active');
+                        console.log('Performance panel closed by ESC key');
+                    }
+                    if (simstartPanel && simstartPanel.classList.contains('active')) {
+                        simstartPanel.classList.remove('active');
+                        console.log('Performance panel closed by ESC key');
+                    }
+                }
+            });
+        }
+        
+        // Initialize panel close functionality
+        initializePanelCloseFunctionality();
+
+        // Initialize single view map
+        setTimeout(() => {
+            singlemapObj = initializeSingleViewMap(fireMarkers);
+        }, 500);
+
+        // UI Preset selection
+        document.querySelectorAll('.ui-preset').forEach(preset => {
+            preset.addEventListener('click', function() {
+                document.querySelectorAll('.ui-preset').forEach(p => p.classList.remove('active'));
+                this.classList.add('active');
+                
+                const presetType = this.dataset.preset;
+                applyUIPreset(presetType);
+            });
+        });
+
+        // Auto transition demo
+        function demonstrateAutoTransition() {
+            const indicator = document.getElementById('autoTransitionIndicator');
+            indicator.classList.add('active');
+            
+            setTimeout(() => {
+                indicator.classList.remove('active');
+                // Switch to responder view
+                document.querySelector('[data-role="responder"]').click();
+            }, 3000);
+        }
+
+        // Demo auto transition every 30 seconds
+        //setInterval(demonstrateAutoTransition, 30000);
+
+        function switchToRoleView(role) {
+            const mainContainer = document.querySelector('.main-container');
+            const body = document.body;
+            
+            // Remove existing role classes
+            mainContainer.classList.remove('commander-view', 'analyst-view', 'responder-view');
+            body.classList.remove('commander-theme', 'analyst-theme', 'responder-theme');
+            
+            // Add new role class
+            mainContainer.classList.add(role + '-view');
+            body.classList.add(role + '-theme');
+            
+            // Update content based on role
+            updateRoleBasedContent(role);
+            
+            // Add visual feedback for theme change
+            showThemeChangeNotification(role);
+            
+            console.log(`Switched to ${role} view with ${role} theme`);
+        }
+
+        function showThemeChangeNotification(role) {
+            const roleNames = {
+                commander: '지휘관',
+                analyst: '분석가', 
+                responder: '현장대응자'
+            };
+            
+            const colors = {
+                commander: '#ffa500',
+                analyst: '#0096ff',
+                responder: '#ff4500'
+            };
+            
+            // Create notification element
+            const notification = document.createElement('div');
+            notification.style.cssText = `
+                position: fixed;
+                top: 80px;
+                right: 20px;
+                background: rgba(0, 0, 0, 0.9);
+                border: 2px solid ${colors[role]};
+                border-radius: 8px;
+                padding: 15px 20px;
+                color: ${colors[role]};
+                font-size: 14px;
+                font-weight: 600;
+                z-index: 1002;
+                opacity: 0;
+                transform: translateX(100px);
+                transition: all 0.3s ease;
+                backdrop-filter: blur(10px);
+            `;
+            notification.innerHTML = `
+                <i class="fas fa-palette"></i> 
+                ${roleNames[role]} 테마로 전환되었습니다
+            `;
+            
+            document.body.appendChild(notification);
+            
+            // Animate in
+            setTimeout(() => {
+                notification.style.opacity = '1';
+                notification.style.transform = 'translateX(0)';
+            }, 100);
+            
+            // Animate out and remove
+            setTimeout(() => {
+                notification.style.opacity = '0';
+                notification.style.transform = 'translateX(100px)';
+                setTimeout(() => {
+                    if (notification.parentNode) {
+                        notification.parentNode.removeChild(notification);
+                    }
+                }, 300);
+            }, 2500);
+        }
+
+        function updateRoleBasedContent(role) {
+            // Update sidebar content based on role
+            const sidebarSections = document.querySelectorAll('.sidebar-section');
+            
+            // Role-specific data
+            const roleData = {
+                commander: {
+                    threatLevel: 'CRITICAL',
+                    threatBadge: 'IMMEDIATE',
+                    threatDetails: '대규모 산불 확산 위험. 즉시 전체 자원 동원 필요.',
+                    incidents: [
+                        { title: '강원도 대형 산불 #2024-001', status: '최고 우선순위', time: '진행중' },
+                        { title: '경북 울진 확산 위험', status: '긴급 대응', time: '2시간 전' },
+                        { title: '전남 순천 예방 조치', status: '모니터링', time: '1시간 전' }
+                    ],
+                    stats: [
+                        { type: '총 투입 자원', value: '156', desc: '소방차, 헬기, 인력 총합' },
+                        { type: '대응 지역', value: '8', desc: '동시 대응 중인 지역' }
+                    ]
+                },
+                analyst: {
+                    threatLevel: 'HIGH RISK',
+                    threatBadge: 'ANALYZING',
+                    threatDetails: '기상 데이터 분석 결과 확산 패턴 예측 중. 상세 분석 진행.',
+                    incidents: [
+                        { title: '화재 확산 모델링 #A001', status: '분석중', time: '실시간' },
+                        { title: '기상 패턴 분석 #W002', status: '완료', time: '30분 전' },
+                        { title: '지형 영향도 평가 #T003', status: '진행중', time: '1시간 전' }
+                    ],
+                    stats: [
+                        { type: '데이터 포인트', value: '2,847', desc: '실시간 수집 중인 센서 데이터' },
+                        { type: '예측 정확도', value: '94.2%', desc: '현재 모델 정확도' }
+                    ]
+                },
+                responder: {
+                    threatLevel: 'ACTIVE FIRE',
+                    threatBadge: 'ON-SITE',
+                    threatDetails: '현장 대응팀 배치 완료. 실시간 상황 업데이트 중.',
+                    incidents: [
+                        { title: '1팀 진화 작업', status: '진행중', time: '현재' },
+                        { title: '2팀 대피 지원', status: '완료', time: '15분 전' },
+                        { title: '3팀 자원 보급', status: '이동중', time: '5분 전' }
+                    ],
+                    stats: [
+                        { type: '현장 인력', value: '45', desc: '현재 투입된 소방관 수' },
+                        { type: '대피 완료', value: '450', desc: '안전 지역 대피 완료 인원' }
+                    ]
+                }
+            };
+
+            const data = roleData[role];
+            
+            // Update threat level
+            const threatTitle = document.querySelector('.threat-level-title');
+            const threatBadge = document.querySelector('.threat-badge');
+            const threatDetails = document.querySelector('.threat-details');
+            
+            if (threatTitle) threatTitle.textContent = data.threatLevel;
+            if (threatBadge) threatBadge.textContent = data.threatBadge;
+            if (threatDetails) threatDetails.textContent = data.threatDetails;
+            
+            // Update incidents
+            const incidentItems = document.querySelectorAll('.incident-item');
+            data.incidents.forEach((incident, index) => {
+                if (incidentItems[index]) {
+                    const title = incidentItems[index].querySelector('.incident-title');
+                    const meta = incidentItems[index].querySelectorAll('.incident-meta span');
+                    
+                    if (title) title.textContent = incident.title;
+                    if (meta[0]) meta[0].textContent = incident.status;
+                    if (meta[1]) meta[1].textContent = incident.time;
+                }
+            });
+            
+            // Update stats
+            const statCards = document.querySelectorAll('.intel-card');
+            data.stats.forEach((stat, index) => {
+                if (statCards[index]) {
+                    const type = statCards[index].querySelector('.intel-type');
+                    const confidence = statCards[index].querySelector('.intel-confidence');
+                    const content = statCards[index].querySelector('.intel-content');
+                    
+                    if (type) type.textContent = stat.type;
+                    if (confidence) confidence.textContent = stat.value;
+                    if (content) content.textContent = stat.desc;
+                }
+            });
+
+            // Update right panel content based on role
+            updateRightPanelContent(role);
+        }
+
+        function updateRightPanelContent(role) {
+            const rightPanelData = {
+                commander: {
+                    aiAnalysis: [
+                        { type: '전략 권고', confidence: 'CRITICAL', content: '즉시 헬기 3대 추가 투입 및 북동쪽 방어선 구축 필요.' },
+                        { type: '자원 배치', confidence: 'OPTIMAL', content: '현재 자원 배치가 최적화됨. 예비 자원 대기 상태 유지.' },
+                        { type: '대피 계획', confidence: 'URGENT', content: '반경 5km 내 추가 대피 구역 설정 권장.' }
+                    ],
+                    response: [
+                        { type: '지휘 현황', confidence: '운영중', content: '통합 지휘소 운영 중. 모든 팀과 실시간 통신 연결.' },
+                        { type: '전체 현황', confidence: '제어됨', content: '3개 화선 중 2개 진압 완료. 주 화선 집중 대응 중.' }
+                    ]
+                },
+                analyst: {
+                    aiAnalysis: [
+                        { type: '확산 모델', confidence: '94.2%', content: '현재 풍향 기준 북동쪽 2.3km 확산 예측. 6시간 내 진압 가능.' },
+                        { type: '기상 분석', confidence: '87.5%', content: '3시간 후 풍속 감소 예상. 진화 작업 최적 타이밍.' },
+                        { type: '지형 영향', confidence: '91.8%', content: '계곡 지형으로 인한 상승 기류 발생. 헬기 접근 주의.' }
+                    ],
+                    response: [
+                        { type: '데이터 수집', confidence: '실시간', content: '위성 이미지, 드론 영상, 센서 데이터 통합 분석 중.' },
+                        { type: '예측 정확도', confidence: '94.2%', content: '지난 24시간 예측 대비 실제 확산 패턴 일치율.' }
+                    ]
+                },
+                responder: {
+                    aiAnalysis: [
+                        { type: '현장 안전', confidence: 'CAUTION', content: '바람 방향 변화로 인한 안전 거리 재조정 필요.' },
+                        { type: '진화 효과', confidence: 'GOOD', content: '현재 진화 작업 효과적. 화선 후퇴 속도 증가.' },
+                        { type: '자원 보급', confidence: 'NEEDED', content: '물 보급 30분 내 필요. 보급차 2대 현장 이동 중.' }
+                    ],
+                    response: [
+                        { type: '팀 상태', confidence: '양호', content: '모든 팀 안전 상태 양호. 부상자 없음.' },
+                        { type: '진화 진행', confidence: '75%', content: '주 화선 75% 진압 완료. 잔불 정리 단계.' }
+                    ]
+                }
+            };
+
+            const data = rightPanelData[role];
+            
+            // Update AI analysis section
+            const aiCards = document.querySelectorAll('.right-panel .intel-section:nth-child(2) .intel-card');
+            data.aiAnalysis.forEach((analysis, index) => {
+                if (aiCards[index]) {
+                    const type = aiCards[index].querySelector('.intel-type');
+                    const confidence = aiCards[index].querySelector('.intel-confidence');
+                    const content = aiCards[index].querySelector('.intel-content');
+                    
+                    if (type) type.textContent = analysis.type;
+                    if (confidence) confidence.textContent = analysis.confidence;
+                    if (content) content.textContent = analysis.content;
+                }
+            });
+
+            // Update response section
+            const responseCards = document.querySelectorAll('.right-panel .intel-section:nth-child(4) .intel-card');
+            data.response.forEach((response, index) => {
+                if (responseCards[index]) {
+                    const type = responseCards[index].querySelector('.intel-type');
+                    const confidence = responseCards[index].querySelector('.intel-confidence');
+                    const content = responseCards[index].querySelector('.intel-content');
+                    
+                    if (type) type.textContent = response.type;
+                    if (confidence) confidence.textContent = response.confidence;
+                    if (content) content.textContent = response.content;
+                }
+            });
+        }
+
+        function updatePerformanceMetrics(role) {
+            const performanceData = {
+                commander: {
+                    metrics: [
+                        { value: '1 km²', label: '진화면적감소량' },
+                        { value: '4%', label: '자원 손실 비율' },
+                        { value: '72%', label: '화선 진화대 도달 비율' },
+                    ],
+                    matchRate: '94점',
+                    title: '지휘관 결과 평가'
+                },
+                analyst: {
+                    metrics: [
+                        { value: '3.2s', label: '데이터 분석 시간' },
+                        { value: '96%', label: '예측 정확도' },
+                        { value: '-58%', label: '분석 오류 감소' },
+                        { value: '+67%', label: '분석 처리 속도 향상' }
+                    ],
+                    matchRate: '96%',
+                    title: '분석가 성과 지표'
+                },
+                responder: {
+                    metrics: [
+                        { value: '1.2s', label: '현장 반응 시간' },
+                        { value: '92%', label: '현장 대응 만족도' },
+                        { value: '-45%', label: '현장 혼선 감소' },
+                        { value: '+38%', label: '진화 작업 효율성' }
+                    ],
+                    matchRate: '89%',
+                    title: '현장대응자 성과 지표'
+                }
+            };
+
+            const data = performanceData[role];
+            
+            // Update performance title
+            const performanceTitle = document.querySelector('.performance-title');
+            if (performanceTitle) {
+                performanceTitle.innerHTML = `<i class="fas fa-trophy"></i> ${data.title}`;
+            }
+            
+            // Update metric cards
+            const metricCards = document.querySelectorAll('.metric-card');
+            data.metrics.forEach((metric, index) => {
+                if (metricCards[index]) {
+                    const value = metricCards[index].querySelector('.metric-value');
+                    const label = metricCards[index].querySelector('.metric-label');
+                    
+                    if (value) value.textContent = metric.value;
+                    if (label) label.textContent = metric.label;
+                }
+            });
+            
+            // Update match rate
+            const matchRate = document.querySelector('.match-rate');
+            if (matchRate) {
+                matchRate.textContent = data.matchRate;
+            }
+            
+            // Update comparison bar width
+            const comparisonFill = document.querySelector('.comparison-fill');
+            if (comparisonFill) {
+                const percentage = parseInt(data.matchRate);
+                comparisonFill.style.width = percentage + '%';
+                
+                // Update target text
+                const targetText = comparisonFill.parentElement.nextElementSibling;
+                if (targetText) {
+                    const status = percentage >= 90 ? '✓' : '⚠';
+                    targetText.innerHTML = `목표: ≥ 90% | 현재: ${data.matchRate} ${status}`;
+                }
+            }
+        }
+
+        function applyUIPreset(preset) {
+            const body = document.body;
+            
+            // Remove existing preset classes
+            body.classList.remove('preset-default', 'preset-commander', 'preset-analyst', 'preset-responder');
+            
+            // Add new preset class
+            body.classList.add('preset-' + preset);
+            
+            console.log(`Applied ${preset} preset`);
+        }
+        
+    </script>
+    <script>
+        async function uploadFolder() {
+            const files = Array.from(document.getElementById("folderInput").files);
+            const fileNames = files.map(f => f.webkitRelativePath);
+
+            // 서버에 폴더 단위 Presigned URL 요청
+            const response = await fetch("/get_presigned_folderurl/", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ files: fileNames })
+            });
+
+            const data = await response.json();  // { folder_uuid, files: [{file_name, url, object_name}, ...] }
+
+            // 각 파일 업로드
+            for (const fileData of data.files) {
+                const file = files.find(f => f.webkitRelativePath === fileData.file_name);
+                await fetch(fileData.url, {
+                    method: "PUT",
+                    body: file
+                });
+                console.log(`${fileData.file_name} 업로드 완료`);
+            }
+            await fetch("/minio_event/", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ Records: data.files.map(f => ({
+                    S3: { object: { key: f.object_name } }
+                })) })
+            });
+
+            console.log("UUID 단위 이벤트 Kafka 전송 완료")
+            alert("폴더 업로드가 완료되었습니다.")
+        }
+    </script>
+</body>
+</html>

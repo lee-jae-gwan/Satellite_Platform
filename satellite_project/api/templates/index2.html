@@ -1,0 +1,89 @@
+{% load static %}
+{% csrf_token %}
+<input type="file" id = "fileInput" accept="image/*,video/*">
+<button onclick="uploadFile()">업로드</button>
+
+<br>
+<input type="file" id="folderInput" webkitdirectory directory multiple>
+<button onclick="uploadFolder()">업로드</button>
+
+{% if uploaded_url %}
+<p>{{ message }}</p>
+<a href="{{ uploaded_url }}" target="_blank">업로드 파일 보기</a>
+{% endif %}
+
+<script>
+    async function uploadFile() {
+        const file = document.getElementById("fileInput").files[0];
+        
+        // 1) Django에서 presigned URL 가져오기
+        const res = await fetch(`/get_presigned_url/?filename=${file.name}`);
+        const data = await res.json();
+        const url = data.url;
+
+        // 2) MinIO에 직접 업로드
+        await fetch(url, {
+            method: "PUT",
+            body: file
+        });
+        const checkRes = await fetch(`/check_file/?object_name=${objectName}`);
+        const checkData = await checkRes.json();
+
+        const statusData = {
+            object_name: objectName,
+            status: checkData.exists,
+            size: checkData.size || 0
+        };
+
+        await fetch("/upload_status/", {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json"
+            },
+            body: JSON.stringify(statusData)
+        });
+
+        if (checkData.exists) {
+            alert(`업로드 성공! 저장된 이름: ${objectName}`);
+        } else {
+            alert("업로드 확인 실패!");
+        }
+
+    }
+</script>
+
+<script>
+    async function uploadFolder() {
+        const files = Array.from(document.getElementById("folderInput").files);
+        const fileNames = files.map(f => f.webkitRelativePath);
+
+        // 서버에 폴더 단위 Presigned URL 요청
+        const response = await fetch("/get_presigned_folderurl/", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ files: fileNames })
+        });
+
+        const data = await response.json();  // { folder_uuid, files: [{file_name, url, object_name}, ...] }
+
+        // 각 파일 업로드
+        for (const fileData of data.files) {
+            const file = files.find(f => f.webkitRelativePath === fileData.file_name);
+            await fetch(fileData.url, {
+                method: "PUT",
+                body: file
+            });
+            console.log(`${fileData.file_name} 업로드 완료`);
+        }
+        await fetch("/minio_event/", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ Records: data.files.map(f => ({
+                S3: { object: { key: f.object_name } }
+            })) })
+        });
+
+        console.log("UUID 단위 이벤트 Kafka 전송 완료")
+        alert("폴더 업로드가 완료되었습니다.")
+    }
+</script>
