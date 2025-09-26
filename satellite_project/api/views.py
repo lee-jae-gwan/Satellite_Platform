@@ -5,6 +5,7 @@ from rest_framework import status
 from .serializers import SatelliteImageSerializer
 from .models import SatelliteImage
 from kafka import KafkaProducer
+from kafka import KafkaConsumer
 import json
 import uuid
 from django.views.decorators.csrf import csrf_exempt
@@ -15,10 +16,18 @@ from minio.error import S3Error
 import urllib
 
 from collections import defaultdict
+import uuid
 
 producer = KafkaProducer(
     bootstrap_servers = '127.0.0.1:9092',
     value_serializer = lambda v : json.dumps(v).encode('utf-8')
+)
+
+consumer = KafkaConsumer(
+    'answer_topic',
+    bootstrap_servers='localhost:9092',
+    value_deserializer=lambda v: json.loads(v.decode('utf-8')),
+    group_id='django-consumer-group'
 )
 
 # Create your views here.
@@ -151,3 +160,21 @@ def minio_event(request):
             return JsonResponse({'status':'error', 'message':str(e)}, status=500)
     
     return JsonResponse({'status':'method not allowed'}, status =405)
+
+@csrf_exempt
+def ask(request):
+    if request.method == "POST":
+        data = json.loads(request.body)
+        user_id = str(123)
+        message_id = str(uuid.uuid4())
+        question = data.get("query")
+
+        print("사용자 질문", question)
+
+        producer.send('question_topic', {'user_id':user_id, 'message_id':message_id,'question':question})
+        print('question topic 전송')
+        producer.flush()
+
+        return JsonResponse({'status': 'ok'}) 
+    else:
+        return JsonResponse({'error':'POST 요청만 허용됩니다.'})

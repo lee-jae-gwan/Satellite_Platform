@@ -1,5 +1,3 @@
-{% load static %}
-{% csrf_token %}
 <!DOCTYPE html>
 <html lang="ko">
 <head>
@@ -489,7 +487,7 @@
 
         .map-container {
             width: 100%;
-            height: 100%;
+            height: 70%;
             background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
             border: 2px solid rgba(0, 255, 255, 0.2);
             border-radius: 12px;
@@ -500,7 +498,7 @@
 
         /* Enhanced map for single view */
         .main-container .map-container {
-            height: 100%;
+            height: 75%;
             margin-bottom: 15px;
         }
 
@@ -1970,6 +1968,22 @@
         .senario-tab-content.active {
             display: block;
         }
+        .message {
+            padding: 10px 15px;
+            border-radius: 20px;
+            max-width: 80%;
+        }
+        .user {
+            background: #d1e7dd;
+            align-self: flex-end;
+            color: rgb(8, 0, 0);
+        }
+
+        .bot {
+            background: #e2e3e5;
+            align-self: flex-start;
+            color: rgb(8, 0, 0);
+        }
     </style>
     <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
     <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
@@ -2172,16 +2186,41 @@
                 
                 <div class="simulation-controls">
                     <div class="control-group">
-                        <input type="file" id="folderInput" webkitdirectory directory multiple>
-                        <button class="control-btn active" onclick="uploadFolder()">
-                            <i class="fas fa-play"></i> 영상 올리기
+                        <button class="control-btn active">
+                            <i class="fas fa-play"></i> 시뮬레이션 시작
+                        </button>
+                        <button class="control-btn">
+                            <i class="fas fa-pause"></i> 일시정지
+                        </button>
+                        <button class="control-btn">
+                            <i class="fas fa-stop"></i> 정지
                         </button>
                     </div>
+                    <div class="control-group">
+                        <span style="font-size: 12px; color: #888;">속도:</span>
+                        <button class="control-btn">1x</button>
+                        <button class="control-btn">2x</button>
+                        <button class="control-btn">5x</button>
+                    </div>
+                    <div class="control-group">
+                        <span style="font-size: 12px; color: #888;">시간: 14:30:25</span>
+                    </div>
                 </div>
-                {% if uploaded_url %}
-                <p>{{ message }}</p>
-                <a href="{{ uploaded_url }}" target="_blank">업로드 파일 보기</a>
-                {% endif %}
+            </div>
+
+            <div class="timeline-container">
+                <div class="timeline-header">
+                    <div class="timeline-title">
+                        <i class="fas fa-chart-area"></i>
+                        화재 확산 예측 타임라인
+                    </div>
+                    <div style="font-size: 12px; color: #888;">
+                        다음 6시간 예측
+                    </div>
+                </div>
+                <div class="timeline-chart">
+                    <div class="timeline-wave"></div>
+                </div>
             </div>
         </main>
 
@@ -3279,10 +3318,12 @@
             }
         }
 
+        
 
         // Initialize the application
         document.addEventListener('DOMContentLoaded', function() {
             // Hide loading overlay after 2 seconds
+            
             setTimeout(() => {
                 document.getElementById('loadingOverlay').classList.add('hidden');
             }, 2000);
@@ -4100,42 +4141,424 @@
             
             console.log(`Applied ${preset} preset`);
         }
-        
     </script>
+    
+
+    <!-- Customization Panel -->
+    <div class="customization-panel2" id="customizationPanel2">
+        <div class="panel-header">
+            <div class="panel-title">
+                <i class="fas fa-palette"></i> UI 맞춤설정
+            </div>
+            <button class="close-btn" id="closeCustomizeBtn">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+        
+        <div class="ui-preset active" data-preset="default">
+            <div class="preset-name">기본 레이아웃</div>
+            <div class="preset-description">표준 3패널 구성 - 균형잡힌 정보 배치</div>
+        </div>
+        
+        <div class="ui-preset" data-preset="commander">
+            <div class="preset-name">지휘관 전용 뷰</div>
+            <div class="preset-description">전략적 개요 중심 - 큰 지도, 핵심 지표</div>
+        </div>
+        
+        <div class="ui-preset" data-preset="analyst">
+            <div class="preset-name">분석가 전용 뷰</div>
+            <div class="preset-description">데이터 중심 - 상세 차트, 통계 패널</div>
+        </div>
+        
+        <div class="ui-preset" data-preset="responder">
+            <div class="preset-name">현장대응자 뷰</div>
+            <div class="preset-description">실시간 정보 중심 - 알림, 자원 현황</div>
+        </div>
+
+        <div style="margin-top: 20px; padding-top: 15px; border-top: 1px solid rgba(255, 255, 255, 0.1);">
+            <button style="width: 100%; background: linear-gradient(135deg, #00ffff 0%, #00cccc 100%); border: none; color: #000; padding: 10px; border-radius: 6px; font-weight: 600; cursor: pointer;">
+                <i class="fas fa-save"></i> 설정 저장
+            </button>
+        </div>
+    </div>
+
+    <!-- Performance Panel -->
+    <div class="performance-panel" id="performancePanel">
+        <div class="performance-header">
+            <div class="performance-title">
+                <i class="fas fa-trophy"></i> 보상 피드백
+            </div>
+            <button class="close-btn" id="closePerformanceBtn">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+        <div style = "display:flex;">
+            <div class="intel-title" style="font-size:larger;">간편 보상</div>
+            <div class="control-btn" style="margin-left:auto; margin-bottom:5px;">고급 보상 설정</div>
+        </div>
+            <div class="intel-section">
+                <div class="intel-card">
+                    <div class="">전략 시나리오 전체 평가</div>
+                    <div class="star-rating">
+                        <input type="radio" name="star" id="star1"><label for="star1">&#9733;</label>
+                        <input type="radio" name="star" id="star2"><label for="star2">&#9733;</label>
+                        <input type="radio" name="star" id="star3"><label for="star3">&#9733;</label>
+                        <input type="radio" name="star" id="star4"><label for="star4">&#9733;</label>
+                        <input type="radio" name="star" id="star5"><label for="star5">&#9733;</label>
+                    </div>
+                </div>
+            </div>
+            <div class="efficiency-buttons">
+                <button class="eff-btn efficient">
+                    <span>✅</span>
+                    효율적
+                </button>
+                <button class="eff-btn inefficient">
+                    <span>❌</span>
+                    비효율적
+                </button>
+            </div>
+            <div class="feedback-section">
+                <button id="feedbackBtn" style="margin-top: 15px; width: 100%; background: rgba(4, 48, 241, 0.3); border: 1px solid rgba(139, 145, 241, 0.3); color: #00c3ff; padding: 8px 12px; border-radius: 6px; cursor: pointer; font-size: 12px;">피드백 제출</button>
+            </div>
+    </div>
+    <div class="performance-panel2" id="performancePanel2">
+        <div class="performance-header">
+            <div class="performance-title">
+                <i class="fas fa-trophy"></i> 보상 피드백
+            </div>
+            <button class="close-btn" id="closePerformanceBtn">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+        <div class="metric-grid">
+            <div class="metric-card">
+                <div class="metric-label">평균 의사결정 시간</div>
+                <div class="metric-value">2.3s</div>
+            </div>
+            <div class="metric-card">
+                <div class="metric-label">사용자 만족도</div>
+                <div class="metric-value">95%</div>
+            </div>
+            <div class="metric-card">
+                <div class="metric-label">정보 과잉 감소</div>
+                <div class="metric-value">-67%</div>
+            </div>
+            <div class="metric-card">
+                <div class="metric-label">안전사고 발생 여부</div>
+                <label class="switch">
+                    <input type="checkbox">
+                    <span class="slider round"></span>
+                </label>
+            </div>
+        </div>
+        <div class="strategy-time">
+            <div class="comparison-header">
+                <div class="time-title">작전 소요 시간</div>
+                <div class="">120분</div>
+            </div>
+            <div style="width: 100%; margin-top: 3px; ">
+                <input type="range" min="0" max="100" value="0" step="1"
+                    style="width: 100%; cursor: pointer; accent-color: #ff4500;">
+            </div>
+        </div>
+        
+        <div class="strategy-comparison">
+            <div class="comparison-header">
+                <div class="comparison-title">자원배치 효율 점수</div>
+                <div class="match-rate">92점</div>
+            </div>
+            <div class="comparison-bar">
+                <div class="comparison-fill"></div>
+            </div>
+            <div style="font-size: 10px; color: #888; margin-top: 8px; text-align: center;">
+                목표: ≥ 90% | 현재: 92% ✓
+            </div>
+        </div>
+
+        <textarea class="metric-card-qualitive" placeholder="피드백 내용 작성"></textarea>
+        <div class="feedback-section">
+            <button id="feedbackBtn" style="margin-top: 5px; width: 100%; background: rgba(4, 48, 241, 0.3); border: 1px solid rgba(139, 145, 241, 0.3); color: #00c3ff; padding: 8px 12px; border-radius: 6px; cursor: pointer; font-size: 12px;">피드백 제출</button>
+        </div>
+
+    </div>
+
+
+    <div class="command-panel" id="commandPanel">
+        <div style="display:flex; align-items:center; justify-content:space-between; padding:12px 16px; background: rgba(155, 48, 255, 0.308); border: 1px solid rgba(48, 2, 90, 0.5); color:white; font-weight:bold; font-size:14px;">
+    <div style="display:flex; align-items:center; gap:8px;">
+      <i class="fas fa-trophy"></i>
+      스마트 지휘 시스템
+    </div>
+    <button id="closecommandBtn" style="background:transparent; border:none; color:white; font-size:16px; cursor:pointer;">
+      <i class="fas fa-times"></i>
+    </button>
+  </div>
+
+  <!-- 채팅 영역 -->
+  <div style="flex:1; padding:12px; display:flex; flex-direction:column; gap:8px; overflow-y:auto; background:#f4f5f7;" id = "messages">
+    <!--메시지 들어가는 곳-->
+  </div>
+
+  <!-- 입력창 + 전송 버튼 -->
+  <div style="position: relative; margin:12px 12px 12px 12px;">
+    <textarea id="feedbackInput" placeholder="원하는 작업을 명령하세요" style="
+      width: 100%;
+      padding: 10px 40px 10px 10px;
+      border-radius: 8px;
+      border: 1px solid rgba(200,200,200,0.5);
+      font-size: 12px;
+      resize: none;
+      background: rgba(255,255,255,0.8);
+    "></textarea>
+
+    <button id="sendBtn" style="
+      position: absolute;
+      right: 8px;
+      top: 50%;
+      transform: translateY(-50%);
+      border: none;
+      background: #9b5de5;
+      color: white;
+      width: 28px;
+      height: 28px;
+      border-radius: 50%;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 14px;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+      transition: all 0.2s ease;
+    " onclick="sendMessage()">
+      <i class="fas fa-paper-plane"></i>
+    </button>
+  </div>
+
+    </div>
+
+    <div class="simulation-panel" id="simPanel">
+        <div style="display: flex; justify-content: space-between; align-items: center;">
+            <h3 class="simulation-title" id="simTitle">2020-04-18 경기도 김포시 하성리 산불 배치 이력</h3>
+            <button id="closeSimBtn" style="background: transparent; border: none; color: white; cursor: pointer;">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+        <div id="simContent" style="display: flex; gap: 12px; padding: 8px; margin-top: 12px; background: rgba(255,255,255,0.1); border-radius: 8px; align-items: stretch;">
+            <!-- 왼쪽: 시뮬레이션 이미지 -->
+            <div style="flex: 2; border-radius: 8px; overflow: hidden; position: relative;">
+                <div id="simul-map" style="width: 100%; height: 100%;"></div>
+
+                <!-- 지도 위에 겹쳐지는 컨트롤 바 -->
+                <div class="pre-simul-control-group" 
+                    style="position: absolute; bottom: 0; left: 0; 
+                            width: 100%; height: 50px;
+                            display: flex; flex-direction: column; 
+                            justify-content: flex-start; align-items: center;
+                            background: rgba(0,0,0,0.8); 
+                            padding: 4px 5px; box-sizing: border-box;">
+        
+                    <!-- 하단: 타임라인 -->
+                    <div class="rangebar-container">
+                        <div style="width: 100%; margin-top: 5px; ">
+                            <input type="range" min="0" max="100" value="0" step="1"
+                                style="width: 100%; cursor: pointer; accent-color: #ff4500;">
+                        </div>
+                        <div class="timeline-marker" style="left: 10%;" title="20% 지점 이벤트">
+                            <div class="tooltip">최초 화선 탐지</div>
+                        </div>
+                        <div class="timeline-marker" style="left: 25%;" title="중간 이벤트">
+                            <div class="tooltip">1차 자원 배치</div>
+                        </div>
+                        <div class="timeline-marker" style="left: 55%;" title="마지막 이벤트">
+                            <div class="tooltip">2차 자원 배치</div>
+                        </div>
+                        <div class="timeline-marker" style="left: 67%;" title="마지막 이벤트">
+                            <div class="tooltip">3차 자원 배치</div>
+                        </div>
+                    </div>
+                </div>
+            </div> <!-- ← 여기서 왼쪽 패널 div 닫기 -->
+
+            <!-- 오른쪽: 정보 패널 -->
+            <div style="flex: 1; display: flex; flex-direction: column; justify-content: flex-start; gap: 10px; padding: 5px; background: rgba(255,255,255,0.15); border-radius: 8px; height: 100%;">
+                <div class="intel-section-simpanel">
+                    <div class="pre-simul-title1">
+                        <i class="fas fa-cloud-sun"></i>
+                        기상 정보
+                    </div>
+                    <div class="weather-widget" style="height:20%;">
+                        <div class="weather-header">
+                            <div>
+                                <div class="weather-temp">23°C</div>
+                                <div class="weather-condition">맑음, 강풍</div>
+                            </div>
+                            <i class="fas fa-sun" style="font-size: 32px; color: #ffa500;"></i>
+                        </div>
+                        <div class="weather-details">
+                            <div class="weather-item">
+                                풍속: <span class="weather-value">15 m/s</span>
+                            </div>
+                            <div class="weather-item">
+                                습도: <span class="weather-value">25%</span>
+                            </div>
+                            <div class="weather-item">
+                                풍향: <span class="weather-value">북서</span>
+                            </div>
+                            <div class="weather-item">
+                                가시거리: <span class="weather-value">10km</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="performance-header ">
+                        <div class="pre-simul-title">
+                            <i class="fas fa-chart-bar"></i>지형 및 상황 정보
+                        </div>
+                    </div>
+                    <div class="metric-grid" style="margin-bottom:0; padding-bottom:2px;">
+                        <div class="metric-card">
+                            <div class="pre-simul-label">고도</div>
+                            <div class="pre-simul-value">200m</div>
+                        </div>
+                        <div class="metric-card">
+                            <div class="pre-simul-label">경사도</div>
+                            <div class="pre-simul-value">30</div>
+                        </div>
+                        <div class="metric-card">
+                            <div class="pre-simul-label">산불 면적</div>
+                            <div class="pre-simul-value">120만 m²</div>
+                        </div>
+                        <div class="metric-card">
+                            <div class="pre-simul-label">진화 현황</div>
+                            <div class="pre-simul-value">20만 m²</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="performance-header" style="margin-bottom:0; padding-bottom:2px;">
+                    <div class="pre-simul-title2">
+                        <i class="fas fa-users"></i> 자원 배치 이력
+                    </div>
+                </div>
+
+                <table style="width:100%; border-collapse: collapse; font-size: 12px; text-align: center; margin-top:0;">
+                        <thead>
+                            <tr style="background:#43e7019a;">
+                                <th style="border:1px solid #ccc; padding:6px; font-weight:800;">선택</th>
+                                <th style="border:1px solid #ccc; padding:6px; font-weight:800;">시간</th>
+                                <th style="border:1px solid #ccc; padding:6px; font-weight:800;">제목</th>
+                                <th style="border:1px solid #ccc; padding:6px; font-weight:800;">특이사항</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td style="border:1px solid #ccc; padding:6px;">
+                                    <input type="checkbox"></td>
+                                <td style="border:1px solid #ccc; padding:6px;">8:20</td>
+                                <td style="border:1px solid #ccc; padding:6px;">최초 화선 탐지</td>
+                                <td style="border:1px solid #ccc; padding:6px;"></td>
+                            </tr>
+                            <tr>
+                                <td style="border:1px solid #ccc; padding:6px;">
+                                    <input type="checkbox"></td>
+                                <td style="border:1px solid #ccc; padding:6px;">10:45</td>
+                                <td style="border:1px solid #ccc; padding:6px;">1차 자원 배치</td>
+                                <td style="border:1px solid #ccc; padding:6px;">동쪽 방향 확산</td>
+                            </tr>
+                            <tr>
+                                <td style="border:1px solid #ccc; padding:6px;">
+                                    <input type="checkbox"></td>
+                                <td style="border:1px solid #ccc; padding:6px;">11:10</td>
+                                <td style="border:1px solid #ccc; padding:6px;">2차 자원배치</td>
+                                <td style="border:1px solid #ccc; padding:6px;">장비 1대 파손</td>
+                            </tr>
+                            <tr>
+                                <td style="border:1px solid #ccc; padding:6px;">
+                                    <input type="checkbox"></td>
+                                <td style="border:1px solid #ccc; padding:6px;">12:30</td>
+                                <td style="border:1px solid #ccc; padding:6px;">3차 자원배치</td>
+                                <td style="border:1px solid #ccc; padding:6px;">주불 진화</td>
+                            </tr>
+                        </tbody>
+                    </table>
+            </div>
+        </div>
+    </div>
+        
+
+    <!-- Auto Transition Indicator -->
+    <div class="auto-transition-indicator" id="autoTransitionIndicator">
+        <div class="transition-text">
+            <i class="fas fa-magic"></i> 상황 인식 기반 자동 뷰 전환
+        </div>
+        <div class="transition-progress">
+            <div class="transition-progress-bar"></div>
+        </div>
+        <div style="font-size: 12px; color: #888; text-align: center; margin-top: 8px;">
+            긴급 상황 감지 → 현장대응자 뷰로 전환
+        </div>
+    </div>
+
+
     <script>
-        async function uploadFolder() {
-            const files = Array.from(document.getElementById("folderInput").files);
-            const fileNames = files.map(f => f.webkitRelativePath);
+        const userId = 123;
+        const socket = new WebSocket(`ws://localhost:8000/ws/chat/123/`);
 
-            // 서버에 폴더 단위 Presigned URL 요청
-            const response = await fetch("/get_presigned_folderurl/", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ files: fileNames })
-            });
-
-            const data = await response.json();  // { folder_uuid, files: [{file_name, url, object_name}, ...] }
-
-            // 각 파일 업로드
-            for (const fileData of data.files) {
-                const file = files.find(f => f.webkitRelativePath === fileData.file_name);
-                await fetch(fileData.url, {
-                    method: "PUT",
-                    body: file
-                });
-                console.log(`${fileData.file_name} 업로드 완료`);
-            }
-            await fetch("/minio_event/", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ Records: data.files.map(f => ({
-                    S3: { object: { key: f.object_name } }
-                })) })
-            });
-
-            console.log("UUID 단위 이벤트 Kafka 전송 완료")
-            alert("폴더 업로드가 완료되었습니다.")
+        function appendMessage(text, sender) {
+            const messages = document.getElementById("messages");
+            const msgDiv = document.createElement("div");
+            msgDiv.className = "message " + sender;
+            msgDiv.textContent = text;
+            messages.appendChild(msgDiv);
+            messages.scrollTop = messages.scrollHeight;
         }
+        const input = document.getElementById("feedbackInput");
+
+        input.addEventListener("keydown", function(e) {
+            if (e.key === "Enter") {
+                if (e.shiftKey) {
+                    // Shift+Enter는 줄바꿈 허용
+                    return;
+                }
+                e.preventDefault(); // Enter 줄바꿈 방지
+                sendMessage();      // 메시지 전송
+            }
+        });
+
+
+        function sendMessage() {
+            const input = document.getElementById("feedbackInput");
+            const text = input.value.trim();
+            if(!text) return;
+            appendMessage(text, "user");
+            input.value = "";
+
+            // 서버 API 호출 예시
+            fetch("/ask", {
+                method: "POST",
+                headers: {"Content-Type": "application/json"},
+                body: JSON.stringify({query: text})
+            })
+            .then(res => res.json())
+            .then(data => appendMessage(data.answer, "bot"))
+            .catch(err => appendMessage("오류 발생", "bot"));
+        }
+        
+        console.log("WebSocket readyState:", socket.readyState);
+        socket.onopen = function() {
+            console.log("[DEBUG] WebSocket connected!");
+        };
+
+        socket.onmessage = function(e) {
+            console.log("[DEBUG] Raw from WebSocket:", e.data); // 직렬화 형태 확인
+            try {
+                const data = JSON.parse(e.data);
+                console.log("[DEBUG] Parsed message:", data.message);
+                appendMessage(data.message, "bot");
+            } catch (err) {
+                console.error("[ERROR] JSON parse failed:", err, "Raw:", e.data);
+            }
+        };
+
     </script>
 </body>
 </html>

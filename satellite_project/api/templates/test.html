@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<title>NGII WMTS 예제</title>
+
+<!-- OpenLayers v6 -->
+<link rel="stylesheet" href="https://openlayers.org/en/v6.15.1/css/ol.css">
+<script src="https://openlayers.org/en/v6.15.1/build/ol.js"></script>
+
+<!-- 기타 -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/proj4js/2.4.4/proj4.js"></script>
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+
+<!-- NGII WMTS -->
+<script src="https://map.ngii.go.kr/openapi/wmts_ngiiMap_v6.4.3.js?apikey=930378DBBDB40A35BD4872BA7D194CA1"></script>
+
+<script>
+window.onload = function() {
+    var map1 = new ngii_wmts.map("map1", {
+        zoom: 7,
+        layer: "Base",
+        style: "default"
+    });
+};
+</script>
+</head>
+<body>
+<div id="map1" style="width:700px;height:700px;"></div>
+</body>
+</html>
