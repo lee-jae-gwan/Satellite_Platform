@@ -77,6 +77,7 @@ def main():
         producer.flush()
 
         last_message = message_id
+        consumer.commit()
 
 if __name__=="__main__":
     main()
